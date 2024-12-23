@@ -1,0 +1,22 @@
+
+{{>site/template/header.html}}
+
+    <main>
+      <article>
+        <header>
+          <hgroup>
+            <h1>pagini cu tag-ul {{tag.tagName}}</h1>
+            <ul>
+              {{#tag.tagReference}}
+                <li>
+                  <a href="/{{.}}" class="secondary">{{.}}</a>
+                </li>
+              {{/tag.tagReference}}
+            </ul>
+          </hgroup>
+        </header>
+        <footer>{{wiki.footer}}</footer>
+      </article>
+    </main>
+
+{{>site/template/footer.html}}

@@ -3,7 +3,14 @@
     <main>
       <article>
         <header>
-          <h1>{{wiki.id}}</h1>
+          <hgroup>
+            <h1>{{wiki.id}}</h1>
+            <p>
+              {{#wiki.tags}}
+                <a href="/wiki/tag/{{.}}.html" class="secondary">{{.}}</a>&nbsp;
+              {{/wiki.tags}}
+            </p>
+          </hgroup>
         </header>
         {{{wiki.content}}}
         <footer>{{wiki.footer}}</footer>

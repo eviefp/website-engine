@@ -71,6 +71,9 @@ library
     , aeson
     , exceptions
     , filepath
+    , lens
+    , lens-aeson
+    , pandoc
     , shake
     , slick
     , text

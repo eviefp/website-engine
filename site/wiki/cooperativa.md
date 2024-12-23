@@ -5,6 +5,7 @@ aliases:
   - cooperative
 tags:
   - economie
+  - cooperativa
 ---
 
 todo: definiție
