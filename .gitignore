@@ -4,3 +4,5 @@ dist-newstyle/
 generated/
 result
 site/css/pico.min.css
+site/wiki/.obsidian/
+site/wiki/.trash/

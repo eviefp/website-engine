@@ -7,6 +7,8 @@ import Blog.Prelude
 import qualified Data.Aeson as JSON
 import qualified Data.Text as T
 import qualified Development.Shake as Shake
+import Development.Shake.FilePath ((-<.>))
+import qualified Development.Shake.FilePath as Shake
 import qualified Slick
 
 output :: FilePath
@@ -25,9 +27,24 @@ copyStaticFiles = do
   void $ Shake.forP paths $ \path ->
     Shake.copyFileChanged ("site" </> path) (output </> path)
 
+buildWiki :: Shake.Action ()
+buildWiki = void $ flip Shake.forP buildWikiPage =<< Shake.getDirectoryFiles "." ["site/wiki//*.md"]
+
+buildWikiPage :: FilePath -> Shake.Action ()
+buildWikiPage path = do
+  post <- Slick.markdownToHTML . T.pack =<< Shake.readFile' path
+  let
+    url = T.pack . Shake.dropDirectory1 $ path -<.> "html"
+  template <- Slick.compileTemplate' "site/template/wiki.html"
+  Shake.writeFile' (output </> T.unpack url)
+    . T.unpack
+    . Slick.substitute template
+    . Config.withMetadataObject "wiki"
+    $ post
+
 run :: IO ()
 run = Slick.slickWithOpts opts do
-  buildIndex *> copyStaticFiles
+  buildWiki *> buildIndex *> copyStaticFiles
  where
   opts :: Shake.ShakeOptions
   opts =
