@@ -2,6 +2,7 @@ module Blog.Config
   ( Metadata
   , metadata
   , withMetadataObject
+  , output
   ) where
 
 import Blog.Prelude
@@ -9,6 +10,9 @@ import qualified Data.Aeson as JSON
 import qualified Data.Aeson.Key as Key
 import qualified Data.Aeson.KeyMap as KeyMap
 import qualified GHC.Err as Unsafe
+
+output :: FilePath
+output = "generated"
 
 newtype Metadata = Metadata
   { title :: Text

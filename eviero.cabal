@@ -66,6 +66,7 @@ library
     Blog
     Blog.Prelude
     Blog.Config
+    Blog.Wiki
   build-depends:
     , base   ^>=4.18.2.1
     , aeson
