@@ -1,16 +1,8 @@
 # Now
 
 - Wiki
-  - [x] hide it for now
 
 - Blog
-  - [x] basic posts
-  - [x] dates
-  - [x] links to wiki (hacky)
-  - [x] pictures, links, basic formatting
-  - [x] styling
-    - [x] dates
-    - [x] image (max) size
 
 - Homepage
   - [ ] index with latest posts
@@ -23,6 +15,7 @@
   - [ ] make wiki links nicer/work within vim as well (currently hacky)
   - [ ] make images take size/positioning hints
   - [ ] categorii (tags for posts, unrelated to tags in wiki)
+  - [ ] post date should be nice (today/yesterday/last week, cu tooltip pe hover)
 
 - Homepage
   - [ ] show other posts from insta/TT/YT/masto/??
