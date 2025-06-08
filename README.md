@@ -8,9 +8,9 @@
   - [x] dates
   - [x] links to wiki (hacky)
   - [x] pictures, links, basic formatting
-  - [ ] styling
-    - [ ] dates
-    - [ ] image (max) size
+  - [x] styling
+    - [x] dates
+    - [x] image (max) size
 
 - Homepage
   - [ ] index with latest posts

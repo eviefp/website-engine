@@ -4,8 +4,13 @@
       <article>
         <header>
           <hgroup>
-            <h1>{{post.id}}</h1>
-            <p>{{post.publish}}</p>
+            <div class="grid">
+              <div>
+                <h1>{{post.id}}</h1>
+              </div>
+              <div class="right">
+                <p>{{post.publish}}</p>
+              </div>
           </hgroup>
         </header>
         {{{post.content}}}
