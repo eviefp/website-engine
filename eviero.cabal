@@ -64,13 +64,16 @@ library
 
   exposed-modules:
     Blog
-    Blog.Prelude
     Blog.Config
-    Blog.Wiki
     Blog.Post
+    Blog.Prelude
+    Blog.Wiki
+
   build-depends:
-    , base   ^>=4.18.2.1
     , aeson
+    , attoparsec
+    , base        ^>=4.19.2.0
+    , chronos
     , exceptions
     , filepath
     , lens
@@ -90,7 +93,7 @@ executable eviero
 
   main-is:          Main.hs
   build-depends:
-    , base    ^>=4.18.2.1
+    , base    ^>=4.19.2.0
     , eviero
 
   hs-source-dirs:   app
@@ -106,5 +109,5 @@ test-suite eviero-test
   hs-source-dirs:   spec
   main-is:          Main.hs
   build-depends:
-    , base    ^>=4.18.2.1
+    , base    ^>=4.19.2.0
     , eviero

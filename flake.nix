@@ -27,7 +27,7 @@
               nixpkgs-fmt.enable = true;
               cabal-fmt.enable = true;
               fourmolu.enable = true;
-              fourmolu.package = pkgs.haskell.packages.ghc910.fourmolu;
+              fourmolu.package = pkgs.haskell.packages.ghc984.fourmolu;
             };
           };
           treefmt = (treefmt-nix.lib.evalModule pkgs treefmt-config).config.build;
@@ -44,16 +44,16 @@
             '';
           };
 
-          packages.default = pkgs.haskell.packages.ghc966.callCabal2nix "eviero" ./. { };
+          packages.default = pkgs.haskell.packages.ghc984.callCabal2nix "eviero" ./. { };
 
           devShells.default = pkgs.mkShell {
             name = "eviero-shell";
             buildInputs = [
               pkgs.zlib.dev
-              pkgs.haskell.compiler.ghc966
-              pkgs.haskell.packages.ghc966.cabal-install
-              pkgs.haskell.packages.ghc966.cabal2nix
-              pkgs.haskell.packages.ghc966.haskell-language-server
+              pkgs.haskell.compiler.ghc984
+              pkgs.haskell.packages.ghc984.cabal-install
+              pkgs.haskell.packages.ghc984.cabal2nix
+              pkgs.haskell.packages.ghc984.haskell-language-server
               pkgs.http-server
             ];
             shellHook = ''
