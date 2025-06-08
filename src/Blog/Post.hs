@@ -1,5 +1,6 @@
 module Blog.Post
-  ( buildPost
+  ( buildPosts
+  , Post (..)
   ) where
 
 import qualified Blog.Config as Config
@@ -24,10 +25,16 @@ data Post = Post
   { id :: Text
   , content :: Text
   , publish :: Date
+  , title :: Text
   }
 
 instance Aeson.FromJSON Post where
-  parseJSON (Aeson.Object p) = Post <$> p .: "id" <*> p .: "content" <*> (p .: "publish" >>= toDate)
+  parseJSON (Aeson.Object p) =
+    Post
+      <$> p .: "id"
+      <*> p .: "content"
+      <*> (p .: "publish" >>= toDate)
+      <*> p .: "title"
    where
     toDate :: Aeson.Value -> Parser Date
     toDate (Aeson.String s) =
@@ -44,18 +51,20 @@ instance Aeson.ToJSON Post where
         [ ("id", Aeson.String id)
         , ("content", Aeson.String content)
         , ("publish", Aeson.String . TL.toStrict . TL.toLazyText . Chronos.builder_Dmy (Just '-') $ publish)
+        , ("title", Aeson.String title)
         ]
 
-parseJSON :: Aeson.FromJSON a => Aeson.Value -> Either String a
+parseJSON :: (Aeson.FromJSON a) => Aeson.Value -> Either String a
 parseJSON v = case Aeson.fromJSON v of
-                Aeson.Success a -> pure a
-                Aeson.Error err -> Left err
+  Aeson.Success a -> pure a
+  Aeson.Error err -> Left err
 
-buildPost :: Shake.Action ()
-buildPost =
-  void $ flip Shake.forP buildPostPage =<< Shake.getDirectoryFiles "." ["site/post//*.md"]
-
-buildPostPage :: FilePath -> Shake.Action ()
+buildPosts :: Shake.Action [Post]
+buildPosts =
+  fmap catMaybes
+    $ flip Shake.forP buildPostPage
+    =<< Shake.getDirectoryFiles "." ["site/post//*.md"]
+buildPostPage :: FilePath -> Shake.Action (Maybe Post)
 buildPostPage path = do
   post <-
     Slick.markdownToHTMLWithOpts options Slick.defaultHtml5Options
@@ -65,16 +74,19 @@ buildPostPage path = do
 
   today <- liftIO Chronos.today
 
-  when (Chronos.dayToDate today >= publish postData) $ do
-    let
-      url = T.pack . Shake.dropDirectory1 $ path -<.> "html"
-    template <- Slick.compileTemplate' "site/template/post.html"
-    Shake.writeFile' (Config.output </> T.unpack url)
-      . T.unpack
-      . Slick.substitute template
-      . Config.withMetadataObject "post"
-      . fixDate
-      $ post
+  if Chronos.dayToDate today >= publish postData
+    then do
+      let
+        url = "post/" <> T.unpack (id postData) -<.> "html"
+      template <- Slick.compileTemplate' "site/template/post.html"
+      Shake.writeFile' (Config.output </> url)
+        . T.unpack
+        . Slick.substitute template
+        . Config.withMetadataObject "post"
+        . fixDate
+        $ post
+      pure $ Just postData
+    else pure Nothing
  where
   options :: Pandoc.ReaderOptions
   options =

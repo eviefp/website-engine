@@ -12,9 +12,11 @@ import Control.Monad.IO.Class as P (MonadIO, liftIO)
 import Data.Function as P ((&))
 import Data.Functor as P (void)
 import Data.List as P (sortOn)
+import Data.Maybe as P (catMaybes)
 import Data.Text as P (Text)
 import GHC.Generics as P (Generic)
 import System.FilePath as P ((</>))
+import Data.Ord as P (Down(..))
 import Prelude as P
   ( Bool (..)
   , Either (..)
@@ -32,16 +34,17 @@ import Prelude as P
   , pure
   , putStrLn
   , show
+  , reverse
   , ($)
   , (*>)
   , (.)
+  , (<)
   , (<$>)
   , (<*>)
+  , (<=)
   , (<>)
   , (==)
   , (>)
-  , (<)
-  , (<=)
   , (>=)
   , (>>=)
   )

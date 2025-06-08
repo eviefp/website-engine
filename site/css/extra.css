@@ -6,3 +6,8 @@ img {
   width: 100%;
   max-width: 350px !important;
 }
+
+.unlink {
+  text-decoration: none;
+  color: gray;
+}

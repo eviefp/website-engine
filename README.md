@@ -5,7 +5,6 @@
 - Blog
 
 - Homepage
-  - [ ] index with latest posts
 
 ## Future
 - Wiki
@@ -19,3 +18,5 @@
 
 - Homepage
   - [ ] show other posts from insta/TT/YT/masto/??
+  - [ ] links to my other stuff
+

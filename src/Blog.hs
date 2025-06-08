@@ -6,17 +6,22 @@ import qualified Blog.Config as Config
 import qualified Blog.Post as Post
 import Blog.Prelude
 import qualified Blog.Wiki as Wiki
-import qualified Data.Aeson as JSON
 import qualified Data.Text as T
 import qualified Development.Shake as Shake
 import qualified Slick
+import qualified Data.Aeson as Aeson
 
-buildIndex :: Shake.Action ()
-buildIndex = do
+buildIndex :: [Post.Post] -> Shake.Action ()
+buildIndex posts = do
   indexT <- Slick.compileTemplate' "site/template/index.html"
-  let
-    html = T.unpack $ Slick.substitute indexT (JSON.toJSON Config.metadata)
-  Shake.writeFile' (Config.output </> "index.html") html
+  let -- html = Aeson.toJSON . T.unpack . Slick.substitute indexT $ JSON.toJSON Config.metadata
+      sortedPosts = sortOn (Down . Post.publish) posts
+  Shake.writeFile' (Config.output </> "index.html")
+    . T.unpack
+    . Slick.substitute indexT
+    . Config.withMetadataObject "posts"
+    . Aeson.toJSON
+    $ sortedPosts
 
 copyStaticFiles :: Shake.Action ()
 copyStaticFiles = do
@@ -27,7 +32,7 @@ copyStaticFiles = do
 
 run :: IO ()
 run = Slick.slickWithOpts opts do
-  copyStaticFiles *> Wiki.buildWiki *> Post.buildPost *> buildIndex
+  copyStaticFiles *> Wiki.buildWiki *> Post.buildPosts >>= buildIndex
  where
   opts :: Shake.ShakeOptions
   opts =
