@@ -5,10 +5,12 @@
 
 - Blog
   - [x] basic posts
-  - [ ] dates
+  - [x] dates
   - [x] links to wiki (hacky)
   - [ ] categorii (tags for posts, unrelated to tags in wiki)
   - [ ] pictures, links, basic formatting
+  - [ ] styling
+    - [ ] dates
 
 - Homepage
   - [ ] index with latest posts

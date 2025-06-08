@@ -3,13 +3,13 @@ module Blog
   ) where
 
 import qualified Blog.Config as Config
+import qualified Blog.Post as Post
 import Blog.Prelude
 import qualified Blog.Wiki as Wiki
 import qualified Data.Aeson as JSON
 import qualified Data.Text as T
 import qualified Development.Shake as Shake
 import qualified Slick
-import qualified Blog.Post as Post
 
 buildIndex :: Shake.Action ()
 buildIndex = do
