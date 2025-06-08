@@ -21,12 +21,13 @@ buildIndex = do
 copyStaticFiles :: Shake.Action ()
 copyStaticFiles = do
   paths <- Shake.getDirectoryFiles "./site/" ["css//*", "images//*"]
-  void $ Shake.forP paths $ \path ->
+  postContents <- Shake.getDirectoryFiles "./site/" ["post/content//*"] -- post contents
+  void $ Shake.forP (paths <> postContents) $ \path ->
     Shake.copyFileChanged ("site" </> path) (Config.output </> path)
 
 run :: IO ()
 run = Slick.slickWithOpts opts do
-  Wiki.buildWiki *> Post.buildPost *> buildIndex *> copyStaticFiles
+  copyStaticFiles *> Wiki.buildWiki *> Post.buildPost *> buildIndex
  where
   opts :: Shake.ShakeOptions
   opts =

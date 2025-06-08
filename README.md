@@ -7,10 +7,10 @@
   - [x] basic posts
   - [x] dates
   - [x] links to wiki (hacky)
-  - [ ] categorii (tags for posts, unrelated to tags in wiki)
-  - [ ] pictures, links, basic formatting
+  - [x] pictures, links, basic formatting
   - [ ] styling
     - [ ] dates
+    - [ ] image (max) size
 
 - Homepage
   - [ ] index with latest posts
@@ -21,6 +21,8 @@
 
 - Blog
   - [ ] make wiki links nicer/work within vim as well (currently hacky)
+  - [ ] make images take size/positioning hints
+  - [ ] categorii (tags for posts, unrelated to tags in wiki)
 
 - Homepage
   - [ ] show other posts from insta/TT/YT/masto/??
