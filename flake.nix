@@ -54,6 +54,7 @@
               pkgs.haskell.packages.ghc966.cabal-install
               pkgs.haskell.packages.ghc966.cabal2nix
               pkgs.haskell.packages.ghc966.haskell-language-server
+              pkgs.http-server
             ];
             shellHook = ''
               ln -sf ${pico-css}/css/pico.min.css site/css/pico.min.css

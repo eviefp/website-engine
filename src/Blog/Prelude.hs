@@ -1,5 +1,6 @@
 module Blog.Prelude
   ( module P
+  , identity
   ) where
 
 import Control.Lens as P (to, traversed, (.~), (^.), (^..))
@@ -33,3 +34,6 @@ import Prelude as P
   , (<>)
   , (==)
   )
+
+identity :: forall a. a -> a
+identity x = x

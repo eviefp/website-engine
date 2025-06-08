@@ -9,6 +9,7 @@ import qualified Data.Aeson as JSON
 import qualified Data.Text as T
 import qualified Development.Shake as Shake
 import qualified Slick
+import qualified Blog.Post as Post
 
 buildIndex :: Shake.Action ()
 buildIndex = do
@@ -25,7 +26,7 @@ copyStaticFiles = do
 
 run :: IO ()
 run = Slick.slickWithOpts opts do
-  Wiki.buildWiki *> buildIndex *> copyStaticFiles
+  Wiki.buildWiki *> Post.buildPost *> buildIndex *> copyStaticFiles
  where
   opts :: Shake.ShakeOptions
   opts =

@@ -1,0 +1,15 @@
+{{>site/template/header.html}}
+
+    <main>
+      <article>
+        <header>
+          <hgroup>
+            <h1>{{post.id}}</h1>
+          </hgroup>
+        </header>
+        {{{post.content}}}
+        <footer>{{post.footer}}</footer>
+      </article>
+    </main>
+
+{{>site/template/footer.html}}
