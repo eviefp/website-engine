@@ -16,7 +16,6 @@ import qualified Data.Text.Lazy as TL
 import qualified Data.Text.Lazy.Builder as TL
 import qualified Development.Shake as Shake
 import Development.Shake.FilePath ((-<.>))
-import qualified Development.Shake.FilePath as Shake
 import qualified Slick
 import qualified Slick.Pandoc as Slick
 import qualified Text.Pandoc as Pandoc
