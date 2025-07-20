@@ -1,5 +1,5 @@
 {
-  description = "A very basic flake";
+  description = "website-engine";
 
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs?ref=nixos-unstable";
@@ -44,10 +44,10 @@
             '';
           };
 
-          packages.default = pkgs.haskell.packages.ghc984.callCabal2nix "eviero" ./. { };
+          packages.default = pkgs.haskell.packages.ghc984.callCabal2nix "website-engne" ./. { };
 
           devShells.default = pkgs.mkShell {
-            name = "eviero-shell";
+            name = "website-engine-shell";
             buildInputs = [
               pkgs.zlib.dev
               pkgs.haskell.compiler.ghc984
