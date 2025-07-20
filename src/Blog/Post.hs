@@ -31,10 +31,13 @@ data Post = Post
 instance Aeson.FromJSON Post where
   parseJSON (Aeson.Object p) =
     Post
-      <$> p .: "id"
-      <*> p .: "content"
+      <$> p
+      .: "id"
+      <*> p
+      .: "content"
       <*> (p .: "publish" >>= toDate)
-      <*> p .: "title"
+      <*> p
+      .: "title"
    where
     toDate :: Aeson.Value -> Parser Date
     toDate (Aeson.String s) =

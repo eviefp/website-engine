@@ -38,4 +38,3 @@ addKey key value object =
   case object of
     JSON.Object o -> JSON.Object . KeyMap.insert (Key.fromString key) value $ o
     _ -> Unsafe.error "addMetadataObject: json is not object"
-

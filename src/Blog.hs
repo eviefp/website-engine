@@ -6,16 +6,16 @@ import qualified Blog.Config as Config
 import qualified Blog.Post as Post
 import Blog.Prelude
 import qualified Blog.Wiki as Wiki
+import qualified Data.Aeson as Aeson
 import qualified Data.Text as T
 import qualified Development.Shake as Shake
 import qualified Slick
-import qualified Data.Aeson as Aeson
 
 buildIndex :: [Post.Post] -> Shake.Action ()
 buildIndex posts = do
   indexT <- Slick.compileTemplate' "site/template/index.html"
-  let -- html = Aeson.toJSON . T.unpack . Slick.substitute indexT $ JSON.toJSON Config.metadata
-      sortedPosts = sortOn (Down . Post.publish) posts
+  let
+    sortedPosts = sortOn (Down . Post.publish) posts
   Shake.writeFile' (Config.output </> "index.html")
     . T.unpack
     . Slick.substitute indexT
