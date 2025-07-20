@@ -12,7 +12,6 @@ maintainer:      me@evie.ro
 -- copyright:
 category:        Web
 build-type:      Simple
-extra-doc-files: CHANGELOG.md
 
 -- extra-source-files:
 
