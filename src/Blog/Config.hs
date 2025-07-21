@@ -13,7 +13,7 @@ import qualified Data.Aeson.KeyMap as KeyMap
 import qualified GHC.Err as Unsafe
 
 output :: FilePath
-output = "generated"
+output = "docs"
 
 newtype Metadata = Metadata
   { title :: Text

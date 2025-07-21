@@ -1,7 +1,7 @@
 .direnv/
 .shake/
 dist-newstyle/
-generated/
+docs/
 result
 site/css/pico.min.css
 site/wiki/.obsidian/
