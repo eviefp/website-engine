@@ -6,7 +6,7 @@ module Blog.Post
 import qualified Blog.Config as Config
 import Blog.Prelude
 import qualified Chronos
-import Data.Aeson ((.:))
+import Data.Aeson (ToJSON (toJSON), (.!=), (.:), (.:?))
 import qualified Data.Aeson as Aeson
 import Data.Aeson.KeyMap (fromList)
 import Data.Aeson.Types (Parser, parseFail, prependFailure, typeMismatch)
@@ -14,6 +14,7 @@ import qualified Data.Attoparsec.Text as AP
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
 import qualified Data.Text.Lazy.Builder as TL
+import qualified Data.Vector as Vector
 import qualified Development.Shake as Shake
 import Development.Shake.FilePath ((-<.>))
 import qualified Slick
@@ -25,11 +26,17 @@ data Post = Post
   , content :: Text
   , publish :: Date
   , title :: Text
+  , author :: Maybe Text
+  , changelog :: [Text]
+  , renderChangelog :: Bool
+  -- ^ This is a hack because the moustache library doesn't have any way to test
+  -- whether an array is not empty, and I couldn't figure out a nicer way to
+  -- not print the changelog header.
   }
 
 instance Aeson.FromJSON Post where
   parseJSON (Aeson.Object p) =
-    Post
+    go
       <$> p
       .: "id"
       <*> p
@@ -37,6 +44,11 @@ instance Aeson.FromJSON Post where
       <*> (p .: "publish" >>= toDate)
       <*> p
       .: "title"
+      <*> p
+      .:? "author"
+      <*> p
+      .:? "changelog"
+      .!= []
    where
     toDate :: Aeson.Value -> Parser Date
     toDate (Aeson.String s) =
@@ -44,6 +56,8 @@ instance Aeson.FromJSON Post where
         Left err -> parseFail $ "failed when parsing date: " <> err
         Right d -> pure d
     toDate invalid = prependFailure "cannot parse date" $ typeMismatch "String" invalid
+    go id content publish title author changelog =
+      let renderChangelog = not . null $ changelog in Post {..}
   parseJSON invalid = prependFailure "cannot parse post" $ typeMismatch "Object" invalid
 
 instance Aeson.ToJSON Post where
@@ -54,6 +68,9 @@ instance Aeson.ToJSON Post where
         , ("content", Aeson.String content)
         , ("publish", Aeson.String . TL.toStrict . TL.toLazyText . Chronos.builder_Dmy (Just '-') $ publish)
         , ("title", Aeson.String title)
+        , ("author", maybe Aeson.Null Aeson.String author)
+        , ("changelog", Aeson.Array . Vector.fromList $ Aeson.String <$> changelog)
+        , ("renderChangelog", Aeson.Bool . not . null $ changelog)
         ]
 
 parseJSON :: (Aeson.FromJSON a) => Aeson.Value -> Either String a
@@ -85,8 +102,8 @@ buildPostPage path = do
         . T.unpack
         . Slick.substitute template
         . Config.withMetadataObject "post"
-        . fixDate
-        $ post
+        . toJSON
+        $ postData
       pure $ Just postData
     else pure Nothing
  where
@@ -105,6 +122,3 @@ buildPostPage path = do
             , Pandoc.githubMarkdownExtensions
             ]
       }
-
-  fixDate :: Aeson.Value -> Aeson.Value
-  fixDate = identity
