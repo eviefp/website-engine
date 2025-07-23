@@ -30,6 +30,8 @@ import Prelude as P
   , fmap
   , maybe
   , mconcat
+  , not
+  , null
   , otherwise
   , pure
   , putStrLn

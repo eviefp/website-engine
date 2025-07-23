@@ -6,7 +6,7 @@
           <hgroup>
             <div class="grid">
               <div>
-                <h1>{{post.title}}</h1>
+              <h1>{{post.title}} {{#post.author}} -- {{.}} {{/post.author}}</h1>
               </div>
               <div class="right">
                 <p>{{post.publish}}</p>
@@ -14,6 +14,17 @@
           </hgroup>
         </header>
         {{{post.content}}}
+
+        <hr />
+
+        {{#post.renderChangelog}}
+        <h4>Changelog</h4>
+        <ul>
+          {{#post.changelog}}
+            <li>{{.}}</li>
+          {{/post.changelog}}
+        </ul>
+        {{/post.renderChangelog}}
         <footer>{{post.footer}}</footer>
       </article>
     </main>
