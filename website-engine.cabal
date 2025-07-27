@@ -64,6 +64,7 @@ library
   exposed-modules:
     Blog
     Blog.Config
+    Blog.Pages
     Blog.Post
     Blog.Prelude
     Blog.Wiki

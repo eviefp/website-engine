@@ -1,6 +1,5 @@
-module Blog.Post
-  ( buildPosts
-  , Post (..)
+module Blog.Pages
+  ( buildPages
   ) where
 
 import qualified Blog.Config as Config
@@ -21,7 +20,7 @@ import qualified Slick
 import qualified Slick.Pandoc as Slick
 import qualified Text.Pandoc as Pandoc
 
-data Post = Post
+data Page = Page
   { id :: Text
   , content :: Text
   , publish :: Date
@@ -32,9 +31,10 @@ data Post = Post
   -- ^ This is a hack because the moustache library doesn't have any way to test
   -- whether an array is not empty, and I couldn't figure out a nicer way to
   -- not print the changelog header.
+  , url :: Maybe Text
   }
 
-instance Aeson.FromJSON Post where
+instance Aeson.FromJSON Page where
   parseJSON (Aeson.Object p) =
     go
       <$> p
@@ -49,6 +49,8 @@ instance Aeson.FromJSON Post where
       <*> p
       .:? "changelog"
       .!= []
+      <*> p
+      .:? "url"
    where
     toDate :: Aeson.Value -> Parser Date
     toDate (Aeson.String s) =
@@ -56,12 +58,12 @@ instance Aeson.FromJSON Post where
         Left err -> parseFail $ "failed when parsing date: " <> err
         Right d -> pure d
     toDate invalid = prependFailure "cannot parse date" $ typeMismatch "String" invalid
-    go id content publish title author changelog =
-      let renderChangelog = not . null $ changelog in Post {..}
+    go id content publish title author changelog url =
+      let renderChangelog = not . null $ changelog in Page {..}
   parseJSON invalid = prependFailure "cannot parse post" $ typeMismatch "Object" invalid
 
-instance Aeson.ToJSON Post where
-  toJSON Post {..} =
+instance Aeson.ToJSON Page where
+  toJSON Page {..} =
     Aeson.Object
       $ fromList
         [ ("id", Aeson.String id)
@@ -71,37 +73,36 @@ instance Aeson.ToJSON Post where
         , ("author", maybe Aeson.Null Aeson.String author)
         , ("changelog", Aeson.Array . Vector.fromList $ Aeson.String <$> changelog)
         , ("renderChangelog", Aeson.Bool . not . null $ changelog)
+        , ("url", maybe Aeson.Null Aeson.String url)
         ]
 
-buildPosts :: Shake.Action [Post]
-buildPosts =
-  fmap catMaybes
-    $ flip Shake.forP buildPostPage
-    =<< Shake.getDirectoryFiles "." ["site/post//*.md"]
+buildPages :: Shake.Action ()
+buildPages =
+  Shake.getDirectoryFiles "." ["site/page//**.md"]
+    >>= void
+    . flip Shake.forP buildPage
 
-buildPostPage :: FilePath -> Shake.Action (Maybe Post)
-buildPostPage path = do
-  post <-
+buildPage :: FilePath -> Shake.Action ()
+buildPage path = do
+  page <-
     Slick.markdownToHTMLWithOpts options Slick.defaultHtml5Options
       . T.pack
       =<< Shake.readFile' path
-  postData <- either (\err -> fail $ "cannot parse post" <> err) pure $ parseJSON post
+  pageData <- either (\err -> fail $ "cannot parse post" <> err) pure $ parseJSON page
 
   today <- liftIO Chronos.today
 
-  if Chronos.dayToDate today >= publish postData
-    then do
-      let
-        url = "post/" <> T.unpack (id postData) -<.> "html"
-      template <- Slick.compileTemplate' "site/template/post.html"
-      Shake.writeFile' (Config.output </> url)
-        . T.unpack
-        . Slick.substitute template
-        . Config.withMetadataObject "post"
-        . toJSON
-        $ postData
-      pure $ Just postData
-    else pure Nothing
+  when (Chronos.dayToDate today >= publish pageData) $ do
+    let
+      outputUrl = maybe ("page/" <> T.unpack (id pageData) -<.> "html") T.unpack (url pageData)
+    template <- Slick.compileTemplate' "site/template/page.html"
+    Shake.writeFile' (Config.output </> outputUrl)
+      . T.unpack
+      . Slick.substitute template
+      . Config.withMetadataObject "page"
+      . toJSON
+      $ pageData
+    pure ()
  where
   options :: Pandoc.ReaderOptions
   options =

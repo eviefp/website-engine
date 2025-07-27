@@ -3,6 +3,7 @@ module Blog
   ) where
 
 import qualified Blog.Config as Config
+import qualified Blog.Pages as Pages
 import qualified Blog.Post as Post
 import Blog.Prelude
 import qualified Blog.Wiki as Wiki
@@ -32,7 +33,11 @@ copyStaticFiles = do
 
 run :: IO ()
 run = Slick.slickWithOpts opts do
-  copyStaticFiles *> Wiki.buildWiki *> Post.buildPosts >>= buildIndex
+  copyStaticFiles
+    *> Pages.buildPages
+    *> Wiki.buildWiki
+    *> Post.buildPosts
+    >>= buildIndex
  where
   opts :: Shake.ShakeOptions
   opts =
