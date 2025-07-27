@@ -2,6 +2,7 @@ module Blog.Prelude
   ( module P
   , identity
   , todo
+  , parseJSON
   ) where
 
 import Chronos as P (Date)
@@ -9,6 +10,7 @@ import Control.Lens as P (to, traversed, (.~), (^.), (^..))
 import Control.Monad as P (guard, when, (<=<), (=<<))
 import Control.Monad.Catch as P (MonadThrow)
 import Control.Monad.IO.Class as P (MonadIO, liftIO)
+import qualified Data.Aeson as Aeson
 import Data.Function as P ((&))
 import Data.Functor as P (void)
 import Data.List as P (sortOn)
@@ -56,3 +58,8 @@ identity x = x
 
 todo :: a
 todo = todo
+
+parseJSON :: (Aeson.FromJSON a) => Aeson.Value -> Either String a
+parseJSON v = case Aeson.fromJSON v of
+  Aeson.Success a -> pure a
+  Aeson.Error err -> Left err

@@ -1,0 +1,32 @@
+{{>site/template/header.html}}
+
+    <main>
+      <article>
+        <header>
+          <hgroup>
+            <div class="grid">
+              <div>
+              <h1>{{page.title}} {{#page.author}} -- {{.}} {{/page.author}}</h1>
+              </div>
+              <div class="right">
+                <p>{{page.publish}}</p>
+              </div>
+          </hgroup>
+        </header>
+        {{{page.content}}}
+
+        <hr />
+
+        {{#page.renderChangelog}}
+        <h4>Changelog</h4>
+        <ul>
+          {{#page.changelog}}
+            <li>{{.}}</li>
+          {{/page.changelog}}
+        </ul>
+        {{/page.renderChangelog}}
+        <footer>{{page.footer}}</footer>
+      </article>
+    </main>
+
+{{>site/template/footer.html}}
