@@ -7,10 +7,11 @@ module Blog.Prelude
 
 import Chronos as P (Date)
 import Control.Lens as P (to, traversed, (.~), (^.), (^..))
-import Control.Monad as P (guard, when, (<=<), (=<<))
+import Control.Monad as P (guard, when, (<=<), (=<<), (>=>))
 import Control.Monad.Catch as P (MonadThrow)
 import Control.Monad.IO.Class as P (MonadIO, liftIO)
 import qualified Data.Aeson as Aeson
+import Data.Aeson.Lens as P (key, _String)
 import Data.Function as P ((&))
 import Data.Functor as P (void)
 import Data.List as P (sortOn)
@@ -25,11 +26,13 @@ import Prelude as P
   , FilePath
   , IO
   , Maybe (..)
+  , Show
   , String
   , either
   , fail
   , flip
   , fmap
+  , fst
   , maybe
   , mconcat
   , not
@@ -39,6 +42,7 @@ import Prelude as P
   , putStrLn
   , reverse
   , show
+  , snd
   , ($)
   , (*>)
   , (.)

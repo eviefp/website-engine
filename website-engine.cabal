@@ -64,6 +64,10 @@ library
   exposed-modules:
     Blog
     Blog.Config
+    Blog.Engine
+    Blog.Settings
+    Blog.Settings.Module
+    Blog.Settings.Tag
     Blog.Pages
     Blog.Post
     Blog.Prelude
@@ -73,6 +77,7 @@ library
     , aeson
     , attoparsec
     , base        ^>=4.19.2.0
+    , bytestring
     , chronos
     , exceptions
     , filepath
