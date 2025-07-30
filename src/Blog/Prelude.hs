@@ -14,7 +14,7 @@ import qualified Data.Aeson as Aeson
 import Data.Aeson.Lens as P (key, _String)
 import Data.Function as P ((&))
 import Data.Functor as P (void)
-import Data.List as P (sortOn)
+import Data.List as P (find, length, sortOn)
 import Data.Maybe as P (catMaybes)
 import Data.Ord as P (Down (..))
 import Data.Text as P (Text)
@@ -23,6 +23,7 @@ import System.FilePath as P ((</>))
 import Prelude as P
   ( Bool (..)
   , Either (..)
+  , Eq
   , FilePath
   , IO
   , Maybe (..)
