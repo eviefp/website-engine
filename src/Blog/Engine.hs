@@ -10,6 +10,8 @@ import qualified Blog.Settings as Settings
 
 import qualified Chronos
 import Control.Lens ((^?))
+import Control.Monad.Reader (ReaderT (ReaderT), ask, runReaderT)
+import Control.Monad.Trans (lift)
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.KeyMap as KeyMap
 import Data.Aeson.Lens (values)
@@ -17,7 +19,6 @@ import qualified Data.Attoparsec.Text as AP
 import Data.Either (rights)
 import Data.Foldable (forM_)
 import qualified Data.Text as T
-import Development.Shake ((~>))
 import qualified Development.Shake as Shake
 import Development.Shake.FilePath ((-<.>))
 import qualified Development.Shake.FilePath as Shake
@@ -72,9 +73,12 @@ mkItem day p v = do
         pure (Item {..}, value)
 
 initItemsCache
-  :: Settings -> Shake.Rules ([Shake.FilePattern] -> Shake.Action [(Item, Aeson.Value)])
-initItemsCache Settings.Settings {..} = do
-  Shake.newCache $ \path -> do
+  :: ReaderT
+      Settings
+      Shake.Rules
+      ([Shake.FilePattern] -> ReaderT Settings Shake.Action [(Item, Aeson.Value)])
+initItemsCache = ReaderT $ \Settings.Settings {..} -> do
+  fn <- Shake.newCache $ \path -> do
     postsPaths <- Shake.getDirectoryFiles source path
     today <- liftIO Chronos.today
 
@@ -93,15 +97,16 @@ initItemsCache Settings.Settings {..} = do
       Left err -> Shake.putVerbose $ show err
       Right _ -> pure ()
     pure . rights $ items
+  pure $ \fp -> lift $ fn fp
 
 generatePage
-  :: Settings
-  -> String
+  :: String
   -> RelativePath
   -> FilePath
   -> [(Item, Aeson.Value)]
-  -> Shake.Action ()
-generatePage Settings.Settings {..} name path templatePath pages = do
+  -> ReaderT Settings Shake.Action ()
+generatePage name path templatePath pages = do
+  Settings.Settings {..} <- ask
   case find ((== takeBaseName path) . T.unpack . id . fst) pages of
     Nothing ->
       fail
@@ -113,7 +118,7 @@ generatePage Settings.Settings {..} name path templatePath pages = do
         <> (source </> getRelativePath path)
     Just pageData -> do
       need . fmap (RelativePath . (\t -> "tag/" </> t -<.> "html") . T.unpack) . tags . fst $ pageData
-      template <- Slick.compileTemplate' templatePath
+      template <- lift $ Slick.compileTemplate' templatePath
       writeFile path
         . T.unpack
         . Slick.substitute template
@@ -121,19 +126,11 @@ generatePage Settings.Settings {..} name path templatePath pages = do
         . Aeson.toJSON
         . snd
         $ pageData
- where
-  takeBaseName :: RelativePath -> String
-  takeBaseName = Shake.takeBaseName . getRelativePath
 
-  need :: [RelativePath] -> Shake.Action ()
-  need = Shake.need . fmap ((output </>) . getRelativePath)
-
-  writeFile :: RelativePath -> String -> Shake.Action ()
-  writeFile p = Shake.writeFile' (output </> getRelativePath p)
-
-run :: Settings -> Shake.Rules ()
-run settings@Settings.Settings {..} = do
-  itemsCache <- initItemsCache settings
+run :: ReaderT Settings Shake.Rules ()
+run = do
+  Settings.Settings {..} <- ask
+  itemsCache <- initItemsCache
 
   want [RelativePath "index.html"]
 
@@ -144,13 +141,13 @@ run settings@Settings.Settings {..} = do
     need' ["css//*", "images//*"]
 
     posts <- itemsCache ["post//*.md"]
-    Shake.putVerbose $ "found " <> show (length posts) <> " post(s)"
+    putVerbose $ "found " <> show (length posts) <> " post(s)"
 
     pages <- itemsCache ["page//*.md"]
-    Shake.putVerbose $ "found " <> show (length posts) <> " page(s)"
+    putVerbose $ "found " <> show (length posts) <> " page(s)"
 
     wikis <- itemsCache ["wiki//*.md"]
-    Shake.putVerbose $ "found " <> show (length posts) <> " wiki page(s)"
+    putVerbose $ "found " <> show (length posts) <> " wiki page(s)"
 
     need . fmap (\post -> RelativePath $ "post/" </> (T.unpack . id . fst $ post) -<.> "html") $ posts
     need . fmap (\post -> RelativePath $ "page/" </> (T.unpack . id . fst $ post) -<.> "html") $ pages
@@ -158,7 +155,7 @@ run settings@Settings.Settings {..} = do
 
     let
       sortedPosts = sortOn (Down . publish . fst) posts
-    template <- Slick.compileTemplate' (source </> "template/index.html")
+    template <- lift $ Slick.compileTemplate' (source </> "template/index.html")
     writeFile path
       . T.unpack
       . Slick.substitute template
@@ -177,21 +174,21 @@ run settings@Settings.Settings {..} = do
   -- posts
   "post//*.html" %> \path -> do
     need' ["post/content//*"]
-    itemsCache ["post//*.md"] >>= generatePage settings "post" path "site/template/post.html"
+    itemsCache ["post//*.md"] >>= generatePage "post" path "site/template/post.html"
   "post/content//*" %> \path ->
     copyFile path path
 
   -- pages
   "page//*.html" %> \path -> do
     need' ["page/content//*"]
-    itemsCache ["page//*.md"] >>= generatePage settings "page" path "site/template/page.html"
+    itemsCache ["page//*.md"] >>= generatePage "page" path "site/template/page.html"
   "page/content//*" %> \path ->
     copyFile path path
 
   -- wiki
   "wiki//*.html" %> \path -> do
     need' ["wiki/content//*"]
-    itemsCache ["wiki//*.md"] >>= generatePage settings "wiki" path "site/template/wiki.html"
+    itemsCache ["wiki//*.md"] >>= generatePage "wiki" path "site/template/wiki.html"
   "wiki/content//*" %> \path ->
     copyFile path path
 
@@ -207,7 +204,7 @@ run settings@Settings.Settings {..} = do
       pages = filter ((tagName `elem`) . tags . fst) allPages
       wikis = filter ((tagName `elem`) . tags . fst) allWikis
 
-    template <- Slick.compileTemplate' "site/template/tag.html"
+    template <- lift $ Slick.compileTemplate' "site/template/tag.html"
     writeFile path
       . T.unpack
       . Slick.substitute template
@@ -217,30 +214,56 @@ run settings@Settings.Settings {..} = do
       . Config.withMetadataObject "tagName"
       . Aeson.toJSON
       $ tagName
- where
-  want :: [RelativePath] -> Shake.Rules ()
-  want files = Shake.want $ (output </>) . getRelativePath <$> files
 
-  need :: [RelativePath] -> Shake.Action ()
-  need = Shake.need . fmap ((output </>) . getRelativePath)
+removeOutput :: ReaderT Settings Shake.Action ()
+removeOutput = do
+  Settings.Settings {..} <- ask
+  liftIO . Shake.removeFiles output $ ["//"]
 
-  need' :: [Shake.FilePattern] -> Shake.Action ()
-  need' pat = Shake.getDirectoryFiles source pat >>= Shake.need . fmap (output </>)
+want :: [RelativePath] -> ReaderT Settings Shake.Rules ()
+want files = do
+  Settings.Settings {..} <- ask
+  lift . Shake.want $ (output </>) . getRelativePath <$> files
 
-  copyFile :: RelativePath -> RelativePath -> Shake.Action ()
-  copyFile src dest = Shake.copyFileChanged (source </> getRelativePath src) (output </> getRelativePath dest)
+(~>) :: String -> ReaderT Settings Shake.Action () -> ReaderT Settings Shake.Rules ()
+(~>) name act = do
+  settings <- ask
+  lift $ name Shake.~> runReaderT act settings
 
-  writeFile :: RelativePath -> String -> Shake.Action ()
-  writeFile path = Shake.writeFile' (output </> getRelativePath path)
+(%>)
+  :: Shake.FilePattern
+  -> (RelativePath -> ReaderT Settings Shake.Action ())
+  -> ReaderT Settings Shake.Rules ()
+(%>) pat act = do
+  settings@Settings.Settings {..} <- ask
+  lift $ (output </> pat) Shake.%> \path ->
+    flip runReaderT settings $ act (RelativePath $ Shake.dropDirectory1 path)
 
-  removeOutput :: Shake.Action ()
-  removeOutput = liftIO . Shake.removeFiles output $ ["//"]
+need' :: [Shake.FilePattern] -> ReaderT Settings Shake.Action ()
+need' pat = do
+  Settings.Settings {..} <- ask
+  lift $ Shake.getDirectoryFiles source pat >>= Shake.need . fmap (output </>)
 
-  (%>) :: Shake.FilePattern -> (RelativePath -> Shake.Action ()) -> Shake.Rules ()
-  (%>) pat act = (output </> pat) Shake.%> \path -> act (RelativePath $ Shake.dropDirectory1 path)
+need :: [RelativePath] -> ReaderT Settings Shake.Action ()
+need path = do
+  Settings.Settings {..} <- ask
+  lift . Shake.need . fmap ((output </>) . getRelativePath) $ path
 
-  takeBaseName :: RelativePath -> String
-  takeBaseName = Shake.takeBaseName . getRelativePath
+putVerbose :: String -> ReaderT Settings Shake.Action ()
+putVerbose = lift . Shake.putVerbose
+
+writeFile :: RelativePath -> String -> ReaderT Settings Shake.Action ()
+writeFile path content = do
+  Settings.Settings {..} <- ask
+  lift $ Shake.writeFile' (output </> getRelativePath path) content
+
+copyFile :: RelativePath -> RelativePath -> ReaderT Settings Shake.Action ()
+copyFile src dest = do
+  Settings.Settings {..} <- ask
+  lift $ Shake.copyFileChanged (source </> getRelativePath src) (output </> getRelativePath dest)
+
+takeBaseName :: RelativePath -> String
+takeBaseName = Shake.takeBaseName . getRelativePath
 
 options :: Pandoc.ReaderOptions
 options =

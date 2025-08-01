@@ -83,6 +83,7 @@ library
     , filepath
     , lens
     , lens-aeson
+    , mtl
     , pandoc
     , shake
     , slick

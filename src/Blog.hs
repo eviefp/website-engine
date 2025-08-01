@@ -12,6 +12,7 @@ import Blog.Settings (Settings)
 import qualified Blog.Settings as Settings
 import qualified Blog.Wiki as Wiki
 
+import Control.Monad.Reader (runReaderT)
 import qualified Data.Aeson as Aeson
 import qualified Data.Text as T
 import qualified Development.Shake as Shake
@@ -62,7 +63,7 @@ runNew = do
     shakeOpts = mkShakeOpts settings
    in
     Shake.shakeArgs shakeOpts do
-      Engine.run settings
+      runReaderT Engine.run settings
  where
   mkShakeOpts :: Settings -> Shake.ShakeOptions
   mkShakeOpts opts =
