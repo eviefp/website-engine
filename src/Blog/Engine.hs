@@ -1,5 +1,22 @@
 module Blog.Engine
-  ( run
+  ( (%>)
+  , (<!>)
+  , (~>)
+  , Item (..)
+  , MetadataError (..)
+  , RelativePath (..)
+  , copyFile
+  , generatePage
+  , initItemsCache
+  , need
+  , need'
+  , options
+  , putVerbose
+  , removeOutput
+  , run
+  , takeBaseName
+  , want
+  , writeFile
   )
 where
 
@@ -102,7 +119,7 @@ initItemsCache = ReaderT $ \Settings.Settings {..} -> do
 generatePage
   :: String
   -> RelativePath
-  -> FilePath
+  -> RelativePath
   -> [(Item, Aeson.Value)]
   -> ReaderT Settings Shake.Action ()
 generatePage name path templatePath pages = do
@@ -118,10 +135,7 @@ generatePage name path templatePath pages = do
         <> (source </> getRelativePath path)
     Just pageData -> do
       need . fmap (RelativePath . (\t -> "tag/" </> t -<.> "html") . T.unpack) . tags . fst $ pageData
-      template <- lift $ Slick.compileTemplate' templatePath
-      writeFile path
-        . T.unpack
-        . Slick.substitute template
+      writeFile templatePath path
         . Config.withMetadataObject name
         . Aeson.toJSON
         . snd
@@ -129,14 +143,12 @@ generatePage name path templatePath pages = do
 
 run :: ReaderT Settings Shake.Rules ()
 run = do
-  Settings.Settings {..} <- ask
   itemsCache <- initItemsCache
 
   want [RelativePath "index.html"]
 
   "clean" ~> removeOutput
 
-  -- index
   "index.html" %> \path -> do
     need' ["css//*", "images//*"]
 
@@ -149,46 +161,41 @@ run = do
     wikis <- itemsCache ["wiki//*.md"]
     putVerbose $ "found " <> show (length posts) <> " wiki page(s)"
 
-    need . fmap (\post -> RelativePath $ "post/" </> (T.unpack . id . fst $ post) -<.> "html") $ posts
-    need . fmap (\post -> RelativePath $ "page/" </> (T.unpack . id . fst $ post) -<.> "html") $ pages
-    need . fmap (\post -> RelativePath $ "wiki/" </> (T.unpack . id . fst $ post) -<.> "html") $ wikis
+    need . fmap (RelativePath . (-<.> "html") . ("post/" </>) . T.unpack . id . fst) $ posts
+    need . fmap (RelativePath . (-<.> "html") . ("page/" </>) . T.unpack . id . fst) $ pages
+    need . fmap (RelativePath . (-<.> "html") . ("wiki/" </>) . T.unpack . id . fst) $ wikis
 
     let
-      sortedPosts = sortOn (Down . publish . fst) posts
-    template <- lift $ Slick.compileTemplate' (source </> "template/index.html")
-    writeFile path
-      . T.unpack
-      . Slick.substitute template
+      sortedPosts = fmap snd . sortOn (Down . publish . fst) $ posts
+    writeFile (RelativePath "template/index.html") path
       . Config.withMetadataObject "posts"
       . Aeson.toJSON
-      . fmap snd
       $ sortedPosts
 
   -- static content
   "css//*" %> \path ->
     copyFile path path
-
   "images//*" %> \path ->
     copyFile path path
 
   -- posts
   "post//*.html" %> \path -> do
     need' ["post/content//*"]
-    itemsCache ["post//*.md"] >>= generatePage "post" path "site/template/post.html"
+    itemsCache ["post//*.md"] >>= generatePage "post" path (RelativePath "template/post.html")
   "post/content//*" %> \path ->
     copyFile path path
 
   -- pages
   "page//*.html" %> \path -> do
     need' ["page/content//*"]
-    itemsCache ["page//*.md"] >>= generatePage "page" path "site/template/page.html"
+    itemsCache ["page//*.md"] >>= generatePage "page" path (RelativePath "template/page.html")
   "page/content//*" %> \path ->
     copyFile path path
 
   -- wiki
   "wiki//*.html" %> \path -> do
     need' ["wiki/content//*"]
-    itemsCache ["wiki//*.md"] >>= generatePage "wiki" path "site/template/wiki.html"
+    itemsCache ["wiki//*.md"] >>= generatePage "wiki" path (RelativePath "template/wiki.html")
   "wiki/content//*" %> \path ->
     copyFile path path
 
@@ -197,17 +204,14 @@ run = do
     allPosts <- itemsCache ["post//*.md"]
     allPages <- itemsCache ["page//*.md"]
     allWikis <- itemsCache ["wiki//*.md"]
+
     let
       tagName = T.pack . takeBaseName $ path
-    let
       posts = filter ((tagName `elem`) . tags . fst) allPosts
       pages = filter ((tagName `elem`) . tags . fst) allPages
       wikis = filter ((tagName `elem`) . tags . fst) allWikis
 
-    template <- lift $ Slick.compileTemplate' "site/template/tag.html"
-    writeFile path
-      . T.unpack
-      . Slick.substitute template
+    writeFile (RelativePath "template/tag.html") path
       . Config.addKey "posts" (Aeson.toJSON $ fmap snd posts)
       . Config.addKey "pages" (Aeson.toJSON $ fmap snd pages)
       . Config.addKey "wikis" (Aeson.toJSON $ fmap snd wikis)
@@ -252,10 +256,15 @@ need path = do
 putVerbose :: String -> ReaderT Settings Shake.Action ()
 putVerbose = lift . Shake.putVerbose
 
-writeFile :: RelativePath -> String -> ReaderT Settings Shake.Action ()
-writeFile path content = do
+writeFile :: RelativePath -> RelativePath -> Aeson.Value -> ReaderT Settings Shake.Action ()
+writeFile templatePath path content = do
   Settings.Settings {..} <- ask
-  lift $ Shake.writeFile' (output </> getRelativePath path) content
+  template <- lift $ Slick.compileTemplate' (source </> getRelativePath templatePath)
+  lift
+    $ Shake.writeFile' (output </> getRelativePath path)
+    . T.unpack
+    . Slick.substitute template
+    $ content
 
 copyFile :: RelativePath -> RelativePath -> ReaderT Settings Shake.Action ()
 copyFile src dest = do
