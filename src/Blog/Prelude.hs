@@ -11,10 +11,10 @@ import Control.Monad as P (guard, when, (<=<), (=<<), (>=>))
 import Control.Monad.Catch as P (MonadThrow)
 import Control.Monad.IO.Class as P (MonadIO, liftIO)
 import qualified Data.Aeson as Aeson
-import Data.Aeson.Lens as P (key, _String)
+import Data.Aeson.Lens as P (key, _Array, _Bool, _String)
 import Data.Function as P ((&))
 import Data.Functor as P (void)
-import Data.List as P (find, length, sortOn)
+import Data.List as P (elem, filter, find, length, sortOn)
 import Data.Maybe as P (catMaybes)
 import Data.Ord as P (Down (..))
 import Data.Text as P (Text)
@@ -45,6 +45,7 @@ import Prelude as P
   , show
   , snd
   , ($)
+  , (&&)
   , (*>)
   , (.)
   , (<)
@@ -56,6 +57,7 @@ import Prelude as P
   , (>)
   , (>=)
   , (>>=)
+  , (||)
   )
 
 identity :: forall a. a -> a
