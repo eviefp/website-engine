@@ -83,7 +83,10 @@ mkItem day p v = do
     else
       let
         changelog = v ^? key "changelog" . _Array
-        renderChangelog = maybe False identity $ v ^? key "renderChangelog" . _Bool
+        -- if `renderChangelog` is present, return that value
+        -- if not, if `changelog` is not present, return False
+        -- else, return whether the changelog is not empty
+        renderChangelog = maybe (maybe False (not . null) changelog) identity $ v ^? key "renderChangelog" . _Bool
         renderChangelog' = Aeson.Bool . maybe renderChangelog ((&& renderChangelog) . not . null) $ changelog
         value = case v of
           Aeson.Object kv -> Aeson.Object $ KeyMap.insert "renderChangelog" renderChangelog' kv
