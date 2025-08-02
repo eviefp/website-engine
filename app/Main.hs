@@ -1,6 +1,7 @@
 module Main where
 
 import Blog.Engine
+import Blog.Item
 import Blog.Prelude
 import Blog.Settings (Settings (Settings))
 import qualified Blog.Settings as Settings
@@ -31,6 +32,10 @@ main = do
 
 run :: ReaderT Settings Shake.Rules ()
 run = do
+  let
+    post = ("post", ["post//*.md"])
+    page = ("page", ["page//*.md"])
+    wiki = ("wiki", ["wiki//*.md"])
   itemsCache <- initItemsCache
 
   want [RelativePath "index.html"]
@@ -40,24 +45,20 @@ run = do
   "index.html" %> \path -> do
     need' ["css//*", "images//*"]
 
-    posts <- itemsCache ["post//*.md"]
-    putVerbose $ "found " <> show (length posts) <> " post(s)"
+    posts <- itemsCache post
+    pages <- itemsCache page
+    wikis <- itemsCache wiki
 
-    pages <- itemsCache ["page//*.md"]
-    putVerbose $ "found " <> show (length posts) <> " page(s)"
-
-    wikis <- itemsCache ["wiki//*.md"]
-    putVerbose $ "found " <> show (length posts) <> " wiki page(s)"
-
-    need . fmap (RelativePath . (-<.> "html") . ("post/" </>) . T.unpack . id . fst) $ posts
-    need . fmap (RelativePath . (-<.> "html") . ("page/" </>) . T.unpack . id . fst) $ pages
-    need . fmap (RelativePath . (-<.> "html") . ("wiki/" </>) . T.unpack . id . fst) $ wikis
+    need . fmap (RelativePath . (-<.> "html") . ("post/" </>) . T.unpack . id) . snd $ posts
+    need . fmap (RelativePath . (-<.> "html") . ("page/" </>) . T.unpack . id) . snd $ pages
+    need . fmap (RelativePath . (-<.> "html") . ("wiki/" </>) . T.unpack . id) . snd $ wikis
 
     let
-      sortedPosts = fmap snd . sortOn (Down . publish . fst) $ posts
+      sortedPosts = sortOn (Down . publish) $ snd posts
     writeFile (RelativePath "template/index.html") path
       . withMetadataObject "posts"
       . Aeson.toJSON
+      . fmap raw
       $ sortedPosts
 
   -- static content
@@ -69,40 +70,55 @@ run = do
   -- posts
   "post//*.html" %> \path -> do
     need' ["post/content//*"]
-    itemsCache ["post//*.md"] >>= generatePage "post" path (RelativePath "template/post.html")
+    sequence
+      [ itemsCache post
+      , itemsCache page
+      , itemsCache wiki
+      ]
+      >>= generatePage "post" path (RelativePath "template/post.html")
   "post/content//*" %> \path ->
     copyFile path path
 
   -- pages
   "page//*.html" %> \path -> do
     need' ["page/content//*"]
-    itemsCache ["page//*.md"] >>= generatePage "page" path (RelativePath "template/page.html")
+    sequence
+      [ itemsCache post
+      , itemsCache page
+      , itemsCache wiki
+      ]
+      >>= generatePage "page" path (RelativePath "template/page.html")
   "page/content//*" %> \path ->
     copyFile path path
 
   -- wiki
   "wiki//*.html" %> \path -> do
     need' ["wiki/content//*"]
-    itemsCache ["wiki//*.md"] >>= generatePage "wiki" path (RelativePath "template/wiki.html")
+    sequence
+      [ itemsCache post
+      , itemsCache page
+      , itemsCache wiki
+      ]
+      >>= generatePage "wiki" path (RelativePath "template/wiki.html")
   "wiki/content//*" %> \path ->
     copyFile path path
 
   -- tags
   "tag/*.html" %> \path -> do
-    allPosts <- itemsCache ["post//*.md"]
-    allPages <- itemsCache ["page//*.md"]
-    allWikis <- itemsCache ["wiki//*.md"]
+    allPosts <- itemsCache post
+    allPages <- itemsCache page
+    allWikis <- itemsCache wiki
 
     let
       tagName = T.pack . takeBaseName $ path
-      posts = filter ((tagName `elem`) . tags . fst) allPosts
-      pages = filter ((tagName `elem`) . tags . fst) allPages
-      wikis = filter ((tagName `elem`) . tags . fst) allWikis
+      posts = filter ((tagName `elem`) . tags) . snd $ allPosts
+      pages = filter ((tagName `elem`) . tags) . snd $ allPages
+      wikis = filter ((tagName `elem`) . tags) . snd $ allWikis
 
     writeFile (RelativePath "template/tag.html") path
-      . addKey "posts" (Aeson.toJSON $ fmap snd posts)
-      . addKey "pages" (Aeson.toJSON $ fmap snd pages)
-      . addKey "wikis" (Aeson.toJSON $ fmap snd wikis)
+      . addKey "posts" (Aeson.toJSON $ fmap raw posts)
+      . addKey "pages" (Aeson.toJSON $ fmap raw pages)
+      . addKey "wikis" (Aeson.toJSON $ fmap raw wikis)
       . withMetadataObject "tagName"
       . Aeson.toJSON
       $ tagName

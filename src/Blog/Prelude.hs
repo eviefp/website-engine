@@ -35,21 +35,26 @@ import Prelude as P
   , Maybe (..)
   , Show
   , String
+  , dropWhile
   , either
   , fail
   , flip
   , fmap
   , fst
+  , lookup
   , maybe
   , mconcat
+  , mempty
   , not
   , null
   , otherwise
   , pure
   , putStrLn
   , reverse
+  , sequence
   , show
   , snd
+  , traverse
   , ($)
   , (&&)
   , (*>)

@@ -62,7 +62,9 @@ library
     , warnings
 
   exposed-modules:
+    Blog.CustomLink
     Blog.Engine
+    Blog.Item
     Blog.Settings
     Blog.Prelude
 
@@ -78,6 +80,7 @@ library
     , lens-aeson
     , mtl
     , pandoc
+    , pandoc-types
     , shake
     , slick
     , text
@@ -104,6 +107,7 @@ executable website-engine
     , lens-aeson
     , mtl
     , pandoc
+    , pandoc-types
     , shake
     , slick
     , text
