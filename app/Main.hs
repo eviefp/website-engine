@@ -1,7 +1,7 @@
 module Main where
 
-import qualified Blog (runNew)
+import qualified Blog (run)
 import Prelude
 
 main :: IO ()
-main = Blog.runNew
+main = Blog.run

@@ -1,5 +1,5 @@
 module Blog
-  ( runNew
+  ( run
   ) where
 
 import qualified Blog.Engine as Engine
@@ -10,8 +10,8 @@ import qualified Blog.Settings as Settings
 import Control.Monad.Reader (runReaderT)
 import qualified Development.Shake as Shake
 
-runNew :: IO ()
-runNew = do
+run :: IO ()
+run = do
   settings <- Settings.parse
   let
     shakeOpts = mkShakeOpts settings
