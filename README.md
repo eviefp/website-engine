@@ -2,6 +2,8 @@
 
 - Links should work like [[module:id]] (which gets substituted by title) or [[module:id|foo]]; [[id]] means "current module"
 - RSS helpers?
+- use https://hackage.haskell.org/package/shake-plus-0.3.4.0/docs/Development-Shake-Plus-Core.html#t:RAction
+- look into https://hackage.haskell.org/package/shake-minify
 
 ## Future
 TODO: review this
