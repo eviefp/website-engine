@@ -17,6 +17,8 @@ module Blog.Engine
   , takeBaseName
   , want
   , writeFile
+  , withMetadataObject
+  , addKey
   )
 where
 
