@@ -63,15 +63,11 @@ library
 
   exposed-modules:
     Blog
-    Blog.Config
     Blog.Engine
     Blog.Settings
     Blog.Settings.Module
     Blog.Settings.Tag
-    Blog.Pages
-    Blog.Post
     Blog.Prelude
-    Blog.Wiki
 
   build-depends:
     , aeson
