@@ -3,6 +3,7 @@ module Blog.Prelude
   , identity
   , todo
   , parseJSON
+  , crashWith
   ) where
 
 import Chronos as P (Date)
@@ -20,6 +21,7 @@ import Data.Ord as P (Down (..))
 import Data.Text as P (Text)
 import GHC.Generics as P (Generic)
 import System.FilePath as P ((</>))
+import Prelude (error)
 import Prelude as P
   ( Bool (..)
   , Either (..)
@@ -70,3 +72,6 @@ parseJSON :: (Aeson.FromJSON a) => Aeson.Value -> Either String a
 parseJSON v = case Aeson.fromJSON v of
   Aeson.Success a -> pure a
   Aeson.Error err -> Left err
+
+crashWith :: forall a. String -> a
+crashWith = error

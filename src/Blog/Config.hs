@@ -34,7 +34,7 @@ withMetadataObject name json =
     _ -> Unsafe.error "withMetadata: json is not object"
 
 addKey :: String -> JSON.Value -> JSON.Value -> JSON.Value
-addKey key value object =
+addKey k v object =
   case object of
-    JSON.Object o -> JSON.Object . KeyMap.insert (Key.fromString key) value $ o
+    JSON.Object o -> JSON.Object . KeyMap.insert (Key.fromString k) v $ o
     _ -> Unsafe.error "addMetadataObject: json is not object"

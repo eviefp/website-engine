@@ -20,7 +20,6 @@ module Blog.Engine
   )
 where
 
-import qualified Blog.Config as Config
 import Blog.Prelude
 import Blog.Settings (Settings)
 import qualified Blog.Settings as Settings
@@ -30,6 +29,7 @@ import Control.Lens ((^?))
 import Control.Monad.Reader (ReaderT (ReaderT), ask, runReaderT)
 import Control.Monad.Trans (lift)
 import qualified Data.Aeson as Aeson
+import qualified Data.Aeson.Key as Key
 import qualified Data.Aeson.KeyMap as KeyMap
 import Data.Aeson.Lens (values)
 import qualified Data.Attoparsec.Text as AP
@@ -136,7 +136,7 @@ generatePage name path templatePath pages = do
     Just pageData -> do
       need . fmap (RelativePath . (\t -> "tag/" </> t -<.> "html") . T.unpack) . tags . fst $ pageData
       writeFile templatePath path
-        . Config.withMetadataObject name
+        . withMetadataObject name
         . Aeson.toJSON
         . snd
         $ pageData
@@ -168,7 +168,7 @@ run = do
     let
       sortedPosts = fmap snd . sortOn (Down . publish . fst) $ posts
     writeFile (RelativePath "template/index.html") path
-      . Config.withMetadataObject "posts"
+      . withMetadataObject "posts"
       . Aeson.toJSON
       $ sortedPosts
 
@@ -212,10 +212,10 @@ run = do
       wikis = filter ((tagName `elem`) . tags . fst) allWikis
 
     writeFile (RelativePath "template/tag.html") path
-      . Config.addKey "posts" (Aeson.toJSON $ fmap snd posts)
-      . Config.addKey "pages" (Aeson.toJSON $ fmap snd pages)
-      . Config.addKey "wikis" (Aeson.toJSON $ fmap snd wikis)
-      . Config.withMetadataObject "tagName"
+      . addKey "posts" (Aeson.toJSON $ fmap snd posts)
+      . addKey "pages" (Aeson.toJSON $ fmap snd pages)
+      . addKey "wikis" (Aeson.toJSON $ fmap snd wikis)
+      . withMetadataObject "tagName"
       . Aeson.toJSON
       $ tagName
 
@@ -273,6 +273,15 @@ copyFile src dest = do
 
 takeBaseName :: RelativePath -> String
 takeBaseName = Shake.takeBaseName . getRelativePath
+
+withMetadataObject :: String -> Aeson.Value -> Aeson.Value
+withMetadataObject name json = Aeson.Object . KeyMap.insert (Key.fromString name) json $ KeyMap.empty
+
+addKey :: String -> Aeson.Value -> Aeson.Value -> Aeson.Value
+addKey k v object =
+  case object of
+    Aeson.Object o -> Aeson.Object . KeyMap.insert (Key.fromString k) v $ o
+    _ -> crashWith "addMetadataObject: json is not object"
 
 options :: Pandoc.ReaderOptions
 options =
