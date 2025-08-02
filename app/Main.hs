@@ -9,6 +9,7 @@ import qualified Data.Aeson as Aeson
 import qualified Data.Text as T
 import qualified Development.Shake as Shake
 
+-- This is just a sample generator. You should use the library and write your own.
 main :: IO ()
 main = do
   Shake.shakeArgs shakeOpts
