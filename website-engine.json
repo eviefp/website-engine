@@ -1,5 +1,4 @@
 {
   "source": "site",
-  "output": "docs",
-  "modules": []
+  "output": "docs"
 }

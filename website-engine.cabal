@@ -65,8 +65,6 @@ library
     Blog
     Blog.Engine
     Blog.Settings
-    Blog.Settings.Module
-    Blog.Settings.Tag
     Blog.Prelude
 
   build-depends:
