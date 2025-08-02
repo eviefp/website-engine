@@ -12,19 +12,18 @@ import qualified Development.Shake as Shake
 
 run :: IO ()
 run = do
-  settings <- Settings.parse
-  let
-    shakeOpts = mkShakeOpts settings
-   in
-    Shake.shakeArgs shakeOpts do
-      runReaderT Engine.run settings
+  Shake.shakeArgs shakeOpts
+    $ runReaderT Engine.run settings
  where
-  mkShakeOpts :: Settings -> Shake.ShakeOptions
-  mkShakeOpts opts =
+  settings :: Settings
+  settings = Settings.Settings {source = "site", output = "docs"}
+
+  shakeOpts :: Shake.ShakeOptions
+  shakeOpts =
     Shake.shakeOptions
       { Shake.shakeLint = Just Shake.LintBasic
       , Shake.shakeTimings = False
-      , Shake.shakeLintInside = [Settings.source opts]
+      , Shake.shakeLintInside = [Settings.source settings]
       , Shake.shakeColor = True
       , Shake.shakeVerbosity = Shake.Verbose
       , Shake.shakeProgress = Shake.progressSimple
