@@ -29,7 +29,7 @@ instance Aeson.FromJSON Settings where
    where
     go :: FilePath -> FilePath -> Settings
     go = Settings
-  parseJSON invalid = Aeson.prependFailure "cannot parse post" $ Aeson.typeMismatch "Object" invalid
+  parseJSON invalid = Aeson.prependFailure "cannot parse settings" $ Aeson.typeMismatch "Object" invalid
 
 instance Aeson.ToJSON Settings where
   toJSON Settings {..} =
