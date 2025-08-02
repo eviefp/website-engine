@@ -1,0 +1,31 @@
+
+{{>site/template/header.html}}
+
+    <main>
+      <article>
+        <header>
+          <hgroup>
+            <h1>{{tagName}}</h1>
+            <ul>
+              {{#wikis}}
+                <li>
+                  <a href="/wiki/{{id}}.html" class="secondary">{{title}}</a>
+                </li>
+              {{/wikis}}
+              {{#pages}}
+                <li>
+                  <a href="/page/{{id}}.html" class="secondary">{{title}}</a>
+                </li>
+              {{/pages}}
+              {{#posts}}
+                <li>
+                  <a href="/post/{{id}}.html" class="secondary">{{title}}</a>
+                </li>
+              {{/posts}}
+            </ul>
+          </hgroup>
+        </header>
+      </article>
+    </main>
+
+{{>site/template/footer.html}}

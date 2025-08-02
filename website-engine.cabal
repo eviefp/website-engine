@@ -63,21 +63,21 @@ library
 
   exposed-modules:
     Blog
-    Blog.Config
-    Blog.Pages
-    Blog.Post
+    Blog.Engine
+    Blog.Settings
     Blog.Prelude
-    Blog.Wiki
 
   build-depends:
     , aeson
     , attoparsec
     , base        ^>=4.19.2.0
+    , bytestring
     , chronos
     , exceptions
     , filepath
     , lens
     , lens-aeson
+    , mtl
     , pandoc
     , shake
     , slick

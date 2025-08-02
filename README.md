@@ -1,10 +1,7 @@
-# Now
+# TODO
 
-- Wiki
-
-- Blog
-
-- Homepage
+- Links should work like [[module:id]] (which gets substituted by title) or [[module:id|foo]]; [[id]] means "current module"
+- RSS helpers?
 
 ## Future
 - Wiki

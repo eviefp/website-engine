@@ -2,7 +2,7 @@
   description = "website-engine";
 
   inputs = {
-    nixpkgs.url = "github:nixos/nixpkgs?ref=nixos-unstable";
+    nixpkgs.url = "github:nixos/nixpkgs?ref=nixos-25.05-small";
     flake-utils.url = "github:numtide/flake-utils";
     treefmt-nix = {
       url = "github:numtide/treefmt-nix";
@@ -44,7 +44,7 @@
             '';
           };
 
-          packages.default = pkgs.haskell.packages.ghc984.callCabal2nix "website-engne" ./. { };
+          packages.default = pkgs.haskell.packages.ghc984.callCabal2nix "website-engine" ./. { };
 
           devShells.default = pkgs.mkShell {
             name = "website-engine-shell";
