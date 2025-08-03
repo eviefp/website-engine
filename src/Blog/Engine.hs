@@ -46,7 +46,10 @@ want files = do
 copyFile :: RelativePath -> RelativePath -> ReaderT Settings Shake.Action ()
 copyFile src dest = do
   Settings {..} <- ask
-  lift $ Shake.copyFileChanged (source </> getRelativePath src) (output </> getRelativePath dest)
+  lift
+    $ Shake.copyFileChanged
+      (source </> getRelativePath src)
+      (output </> getRelativePath dest)
 
 generatePage
   :: String
@@ -58,20 +61,21 @@ generatePage name path templatePath pages = do
   Settings {..} <- ask
   case find ((== takeBaseName path) . T.unpack . id . fst) pages of
     Nothing ->
-      fail
-        $ "["
-        <> name
-        <> "] Internal error: could not find "
-        <> name
-        <> " :"
-        <> (source </> getRelativePath path)
-    Just pageData -> do
-      need . fmap (RelativePath . (\t -> "tag/" </> t -<.> "html") . T.unpack) . tags . fst $ pageData
+      crashWith
+        . join
+        $ [ "["
+          , name
+          , "] Internal error: could not find "
+          , name
+          , " :"
+          , source </> getRelativePath path
+          ]
+    Just (item, json) -> do
+      need . fmap (RelativePath . ("tag" </>) . (-<.> "html") . T.unpack) . tags $ item
       writeFile templatePath path
         . withMetadataObject name
         . Aeson.toJSON
-        . snd
-        $ pageData
+        $ json
 
 initItemsCache
   :: ReaderT
@@ -79,33 +83,29 @@ initItemsCache
       Shake.Rules
       ([Shake.FilePattern] -> ReaderT Settings Shake.Action [(Item, Aeson.Value)])
 initItemsCache = ReaderT $ \Settings {..} -> do
-  fn <- Shake.newCache $ \path -> do
+  (fmap . fmap) lift . Shake.newCache $ \path -> do
     postsPaths <- Shake.getDirectoryFiles source path
     today <- liftIO Chronos.today
-
     items <-
       Shake.forP
         postsPaths
-        ( \pp ->
-            Shake.readFile'
-              . (source </>)
-              >=> fmap (mkItem today pp)
+        ( \postPath ->
+            fmap (mkItem today postPath)
               . Slick.markdownToHTMLWithOpts options Slick.defaultHtml5Options
               . T.pack
-              $ pp
+              <=< Shake.readFile'
+              . (source </>)
+              $ postPath
         )
-    forM_ items \case
-      Left err -> Shake.putVerbose $ show err
-      Right _ -> pure ()
+    traverse_ (Shake.putVerbose . show) . lefts $ items
     pure . rights $ items
-  pure $ \fp -> lift $ fn fp
 
 writeFile :: RelativePath -> RelativePath -> Aeson.Value -> ReaderT Settings Shake.Action ()
 writeFile templatePath path content = do
   Settings {..} <- ask
-  template <- lift $ Slick.compileTemplate' (source </> getRelativePath templatePath)
+  template <- lift . Slick.compileTemplate' $ source </> getRelativePath templatePath
   lift
-    $ Shake.writeFile' (output </> getRelativePath path)
+    . Shake.writeFile' (output </> getRelativePath path)
     . T.unpack
     . Slick.substitute template
     $ content
@@ -122,10 +122,14 @@ removeOutput = do
   :: Shake.FilePattern
   -> (RelativePath -> ReaderT Settings Shake.Action ())
   -> ReaderT Settings Shake.Rules ()
-(%>) pat act = do
+(%>) pat action = do
   settings@Settings {..} <- ask
   lift $ (output </> pat) Shake.%> \path ->
-    flip runReaderT settings $ act (RelativePath $ Shake.dropDirectory1 path)
+    flip runReaderT settings
+      . action
+      . RelativePath
+      . Shake.dropDirectory1
+      $ path
 
 need :: [RelativePath] -> ReaderT Settings Shake.Action ()
 need path = do
@@ -135,7 +139,8 @@ need path = do
 need' :: [Shake.FilePattern] -> ReaderT Settings Shake.Action ()
 need' pat = do
   Settings {..} <- ask
-  lift $ Shake.getDirectoryFiles source pat >>= Shake.need . fmap (output </>)
+  lift do
+    Shake.getDirectoryFiles source pat >>= Shake.need . fmap (output </>)
 
 (<!>) :: Maybe b -> a -> Either a b
 (<!>) mb err = maybe (Left err) Right mb
@@ -164,13 +169,13 @@ data MetadataError
   deriving stock (Show)
 
 withMetadataObject :: String -> Aeson.Value -> Aeson.Value
-withMetadataObject name json = Aeson.Object . KeyMap.insert (Key.fromString name) json $ KeyMap.empty
+withMetadataObject name json = Aeson.Object $ KeyMap.singleton (Key.fromString name) json
 
 addKey :: String -> Aeson.Value -> Aeson.Value -> Aeson.Value
 addKey k v object =
   case object of
     Aeson.Object o -> Aeson.Object . KeyMap.insert (Key.fromString k) v $ o
-    _ -> crashWith "addMetadataObject: json is not object"
+    other -> crashWith $ "addMetadataObject: json is not an object, found: " <> show other
 
 takeBaseName :: RelativePath -> String
 takeBaseName = Shake.takeBaseName . getRelativePath
@@ -198,7 +203,7 @@ mkItem day p v = do
   id <- v ^? key "id" . _String <!> MissingKey p "id"
   title <- v ^? key "title" . _String <!> MissingKey p "title"
   pub <- v ^? key "publish" . _String <!> MissingKey p "publish"
-  publish <- case AP.parseOnly (Chronos.parser_Dmy (Just '-')) pub of
+  publish <- case AP.parseOnly (Chronos.parser_Dmy $ Just '-') pub of
     Left err -> Left $ MalformedPublishDate p err
     Right d -> pure d
   let

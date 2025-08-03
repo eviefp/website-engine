@@ -8,21 +8,22 @@ module Blog.Prelude
 
 import Chronos as P (Date)
 import Control.Lens as P (to, traversed, (.~), (^.), (^..))
-import Control.Monad as P (guard, when, (<=<), (=<<), (>=>))
+import Control.Monad as P (guard, join, when, (<=<), (=<<), (>=>))
 import Control.Monad.Catch as P (MonadThrow)
 import Control.Monad.IO.Class as P (MonadIO, liftIO)
 import Control.Monad.Reader as P (ReaderT (ReaderT), ask, runReaderT)
 import Control.Monad.Trans as P (lift)
 import qualified Data.Aeson as Aeson
 import Data.Aeson.Lens as P (key, values, _Array, _Bool, _String)
-import Data.Either as P (rights)
-import Data.Foldable as P (forM_)
+import Data.Either as P (lefts, rights)
+import Data.Foldable as P (forM_, traverse_)
 import Data.Function as P ((&))
 import Data.Functor as P (void)
 import Data.List as P (elem, filter, find, length, sortOn)
 import Data.Maybe as P (catMaybes)
 import Data.Ord as P (Down (..))
 import Data.Text as P (Text)
+import Data.Traversable as P (traverse)
 import GHC.Generics as P (Generic)
 import System.FilePath as P ((-<.>), (</>))
 import Prelude (error)
@@ -36,7 +37,6 @@ import Prelude as P
   , Show
   , String
   , either
-  , fail
   , flip
   , fmap
   , fst

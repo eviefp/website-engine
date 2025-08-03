@@ -1,6 +1,5 @@
 module Blog.Settings
   ( Settings (..)
-  , parse
   )
 where
 
@@ -10,7 +9,6 @@ import Data.Aeson ((.:))
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.KeyMap as Aeson
 import qualified Data.Aeson.Types as Aeson
-import qualified Data.ByteString.Lazy as BL
 import qualified Data.Text as T
 
 data Settings = Settings
@@ -38,6 +36,3 @@ instance Aeson.ToJSON Settings where
         [ ("source", Aeson.String . T.pack $ source)
         , ("output", Aeson.String . T.pack $ output)
         ]
-
-parse :: IO Settings
-parse = BL.readFile "website-engine.json" >>= Aeson.throwDecode
