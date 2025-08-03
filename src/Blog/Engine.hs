@@ -9,10 +9,7 @@ module Blog.Engine
   , (%>)
   , need
   , need'
-  , (<!>)
   , (~>)
-  , MetadataError (..)
-  , Item (..)
   , RelativePath (..)
   , withMetadataObject
   , addKey
@@ -21,22 +18,23 @@ module Blog.Engine
   )
 where
 
+import Blog.Item
 import Blog.Prelude
 import Blog.Settings (Settings (Settings))
 import qualified Blog.Settings as Settings
+import qualified Blog.Wikilinks as CL
 
 import qualified Chronos
-import Control.Lens ((^?))
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Key as Key
 import qualified Data.Aeson.KeyMap as KeyMap
-import qualified Data.Attoparsec.Text as AP
 import qualified Data.Text as T
 import qualified Development.Shake as Shake
 import qualified Development.Shake.FilePath as Shake
 import qualified Slick
 import qualified Slick.Pandoc as Slick
 import qualified Text.Pandoc as Pandoc
+import qualified Text.Pandoc.Walk as PW
 
 want :: [RelativePath] -> ReaderT Settings Shake.Rules ()
 want files = do
@@ -55,11 +53,14 @@ generatePage
   :: String
   -> RelativePath
   -> RelativePath
-  -> [(Item, Aeson.Value)]
+  -> [(Text, [Item])]
   -> ReaderT Settings Shake.Action ()
-generatePage name path templatePath pages = do
+generatePage name path templatePath cache = do
   Settings {..} <- ask
-  case find ((== takeBaseName path) . T.unpack . id . fst) pages of
+  items <- case lookup (T.pack name) cache of
+    Nothing -> crashWith $ "could not find requested items in cache: " <> name
+    Just i -> pure i
+  case find ((== takeBaseName path) . T.unpack . id) items of
     Nothing ->
       crashWith
         . join
@@ -70,20 +71,23 @@ generatePage name path templatePath pages = do
           , " :"
           , source </> getRelativePath path
           ]
-    Just (item, json) -> do
+    Just item -> do
       need . fmap (RelativePath . ("tag" </>) . (-<.> "html") . T.unpack) . tags $ item
+      content <- lift . genenerateHtmlWithFixedWikiLinks cache (T.pack name) . documentContent $ item
       writeFile templatePath path
         . withMetadataObject name
+        . addKey "content" content
         . Aeson.toJSON
-        $ json
+        . metadata
+        $ item
 
 initItemsCache
   :: ReaderT
       Settings
       Shake.Rules
-      ([Shake.FilePattern] -> ReaderT Settings Shake.Action [(Item, Aeson.Value)])
+      ((Text, [Shake.FilePattern]) -> ReaderT Settings Shake.Action (Text, [Item]))
 initItemsCache = ReaderT $ \Settings {..} -> do
-  (fmap . fmap) lift . Shake.newCache $ \path -> do
+  (fmap . fmap) lift . Shake.newCache $ \(k, path) -> do
     postsPaths <- Shake.getDirectoryFiles source path
     today <- liftIO Chronos.today
     items <-
@@ -91,14 +95,14 @@ initItemsCache = ReaderT $ \Settings {..} -> do
         postsPaths
         ( \postPath ->
             fmap (mkItem today postPath)
-              . Slick.markdownToHTMLWithOpts options Slick.defaultHtml5Options
+              . markdownToMetaAndContent
               . T.pack
               <=< Shake.readFile'
               . (source </>)
               $ postPath
         )
     traverse_ (Shake.putVerbose . show) . lefts $ items
-    pure . rights $ items
+    pure . (k,) . rights $ items
 
 writeFile :: RelativePath -> RelativePath -> Aeson.Value -> ReaderT Settings Shake.Action ()
 writeFile templatePath path content = do
@@ -142,10 +146,6 @@ need' pat = do
   lift do
     Shake.getDirectoryFiles source pat >>= Shake.need . fmap (output </>)
 
-(<!>) :: Maybe b -> a -> Either a b
-(<!>) mb err = maybe (Left err) Right mb
-infixr 7 <!>
-
 (~>) :: String -> ReaderT Settings Shake.Action () -> ReaderT Settings Shake.Rules ()
 (~>) name act = do
   settings <- ask
@@ -154,19 +154,6 @@ infixr 7 <!>
 newtype RelativePath = RelativePath
   { getRelativePath :: FilePath
   }
-
-data Item = Item
-  { id :: Text
-  , title :: Text
-  , publish :: Date
-  , tags :: [Text]
-  }
-
-data MetadataError
-  = MissingKey FilePath String
-  | MalformedPublishDate FilePath String
-  | PostNotPublishedYet FilePath Text
-  deriving stock (Show)
 
 withMetadataObject :: String -> Aeson.Value -> Aeson.Value
 withMetadataObject name json = Aeson.Object $ KeyMap.singleton (Key.fromString name) json
@@ -196,30 +183,36 @@ options =
           ]
     }
 
--- perhaps use something other than `Maybe` and upstream the error/reason?
--- I'd like to see "skipped because future", "could not parse date" as an error etc
-mkItem :: Chronos.Day -> FilePath -> Aeson.Value -> Either MetadataError (Item, Aeson.Value)
-mkItem day p v = do
-  id <- v ^? key "id" . _String <!> MissingKey p "id"
-  title <- v ^? key "title" . _String <!> MissingKey p "title"
-  pub <- v ^? key "publish" . _String <!> MissingKey p "publish"
-  publish <- case AP.parseOnly (Chronos.parser_Dmy $ Just '-') pub of
-    Left err -> Left $ MalformedPublishDate p err
-    Right d -> pure d
+markdownToMetaAndContent :: Text -> Shake.Action (Aeson.Value, [Pandoc.Block])
+markdownToMetaAndContent content = do
   let
-    tags = v ^.. key "tags" . values . _String
-  if Chronos.dayToDate day < publish
-    then Left $ PostNotPublishedYet p id
-    else
-      let
-        changelog = v ^? key "changelog" . _Array
-        -- if `renderChangelog` is present, return that value
-        -- if not, if `changelog` is not present, return False
-        -- else, return whether the changelog is not empty
-        renderChangelog = maybe (maybe False (not . null) changelog) identity $ v ^? key "renderChangelog" . _Bool
-        renderChangelog' = Aeson.Bool . maybe renderChangelog ((&& renderChangelog) . not . null) $ changelog
-        value = case v of
-          Aeson.Object kv -> Aeson.Object $ KeyMap.insert "renderChangelog" renderChangelog' kv
-          _ -> v
-      in
-        pure (Item {..}, value)
+    writer = Pandoc.writeHtml5String Slick.defaultHtml5Options
+  (Pandoc.Pandoc meta' blocks) <- unPandocM $ Pandoc.readMarkdown options content
+  meta <- flattenMeta writer meta'
+  pure (meta, blocks)
+
+flattenMeta :: (Pandoc.Pandoc -> Pandoc.PandocIO T.Text) -> Pandoc.Meta -> Shake.Action Aeson.Value
+flattenMeta writer (Pandoc.Meta meta) = Aeson.toJSON <$> traverse go meta
+ where
+  go :: Pandoc.MetaValue -> Shake.Action Aeson.Value
+  go (Pandoc.MetaMap m) = Aeson.toJSON <$> traverse go m
+  go (Pandoc.MetaList m) = Aeson.toJSONList <$> traverse go m
+  go (Pandoc.MetaBool m) = pure $ Aeson.toJSON m
+  go (Pandoc.MetaString m) = pure $ Aeson.toJSON m
+  go (Pandoc.MetaInlines m) = Aeson.toJSON <$> (unPandocM . writer . Pandoc.Pandoc mempty . (: []) . Pandoc.Plain $ m)
+  go (Pandoc.MetaBlocks m) = Aeson.toJSON <$> (unPandocM . writer . Pandoc.Pandoc mempty $ m)
+
+genenerateHtmlWithFixedWikiLinks
+  :: [(Text, [Item])] -> Text -> [Pandoc.Block] -> Shake.Action Aeson.Value
+genenerateHtmlWithFixedWikiLinks cache def blocks = do
+  fixedBlocks <- PW.walkM (CL.transform cache def) blocks
+  let
+    writer = Pandoc.writeHtml5String Slick.defaultHtml5Options
+    doc = Pandoc.Pandoc mempty fixedBlocks
+  outText <- unPandocM $ writer doc
+  pure $ Aeson.String outText
+
+unPandocM :: Pandoc.PandocIO a -> Shake.Action a
+unPandocM p = do
+  result <- liftIO $ Pandoc.runIO p
+  either (crashWith . show) pure result

@@ -63,8 +63,10 @@ library
 
   exposed-modules:
     Blog.Engine
-    Blog.Settings
+    Blog.Item
     Blog.Prelude
+    Blog.Settings
+    Blog.Wikilinks
 
   build-depends:
     , aeson
@@ -78,6 +80,7 @@ library
     , lens-aeson
     , mtl
     , pandoc
+    , pandoc-types
     , shake
     , slick
     , text
@@ -104,6 +107,7 @@ executable website-engine
     , lens-aeson
     , mtl
     , pandoc
+    , pandoc-types
     , shake
     , slick
     , text

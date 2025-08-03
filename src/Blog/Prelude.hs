@@ -18,7 +18,7 @@ import Data.Aeson.Lens as P (key, values, _Array, _Bool, _String)
 import Data.Either as P (lefts, rights)
 import Data.Foldable as P (forM_, traverse_)
 import Data.Function as P ((&))
-import Data.Functor as P (void)
+import Data.Functor as P (void, ($>))
 import Data.List as P (elem, filter, find, length, sortOn)
 import Data.Maybe as P (catMaybes)
 import Data.Ord as P (Down (..))
@@ -36,18 +36,22 @@ import Prelude as P
   , Maybe (..)
   , Show
   , String
+  , dropWhile
   , either
   , flip
   , fmap
   , fst
+  , lookup
   , maybe
   , mconcat
+  , mempty
   , not
   , null
   , otherwise
   , pure
   , putStrLn
   , reverse
+  , sequence
   , show
   , snd
   , ($)
