@@ -62,22 +62,21 @@ library
     , warnings
 
   exposed-modules:
-    Blog
-    Blog.Config
-    Blog.Pages
-    Blog.Post
+    Blog.Engine
+    Blog.Settings
     Blog.Prelude
-    Blog.Wiki
 
   build-depends:
     , aeson
     , attoparsec
     , base        ^>=4.19.2.0
+    , bytestring
     , chronos
     , exceptions
     , filepath
     , lens
     , lens-aeson
+    , mtl
     , pandoc
     , shake
     , slick
@@ -95,6 +94,20 @@ executable website-engine
   main-is:          Main.hs
   build-depends:
     , base    ^>=4.19.2.0
+    , aeson
+    , attoparsec
+    , bytestring
+    , chronos
+    , exceptions
+    , filepath
+    , lens
+    , lens-aeson
+    , mtl
+    , pandoc
+    , shake
+    , slick
+    , text
+    , vector
     , website-engine
 
   hs-source-dirs:   app
