@@ -5,6 +5,9 @@ module Blog.Engine
   , initItemsCache
   , writeFile
   , putVerbose
+  , putInfo
+  , putWarn
+  , putError
   , removeOutput
   , (%>)
   , need
@@ -44,7 +47,9 @@ want files = do
 copyFile :: RelativePath -> RelativePath -> ReaderT Settings Shake.Action ()
 copyFile src dest = do
   Settings {..} <- ask
+  putInfo $ "[copyFile] " <> getRelativePath src <> " -> " <> getRelativePath dest
   lift
+    . Shake.quietly
     $ Shake.copyFileChanged
       (source </> getRelativePath src)
       (output </> getRelativePath dest)
@@ -58,11 +63,11 @@ generatePage
 generatePage name path templatePath cache = do
   Settings {..} <- ask
   items <- case lookup (T.pack name) cache of
-    Nothing -> crashWith $ "could not find requested items in cache: " <> name
+    Nothing -> putError $ "[generatePage] Cannot find item in cache: " <> name
     Just i -> pure i
   case find ((== takeBaseName path) . T.unpack . id) items of
     Nothing ->
-      crashWith
+      putError
         . join
         $ [ "["
           , name
@@ -73,7 +78,12 @@ generatePage name path templatePath cache = do
           ]
     Just item -> do
       need . fmap (RelativePath . ("tag" </>) . (-<.> "html") . T.unpack) . tags $ item
+
+      putVerbose $ "[generatePage] Generating content for " <> getRelativePath path
       content <- lift . genenerateHtmlWithFixedWikiLinks cache (T.pack name) . documentContent $ item
+      putVerbose $ "[generatePage] Generated content:\n" <> show content
+
+      putInfo $ "[generatePage] Generated " <> getRelativePath path
       writeFile templatePath path
         . withMetadataObject name
         . addKey "content" content
@@ -101,13 +111,18 @@ initItemsCache = ReaderT $ \Settings {..} -> do
               . (source </>)
               $ postPath
         )
-    traverse_ (Shake.putVerbose . show) . lefts $ items
+    traverse_ (Shake.putInfo . show) . lefts $ items
     pure . (k,) . rights $ items
 
 writeFile :: RelativePath -> RelativePath -> Aeson.Value -> ReaderT Settings Shake.Action ()
 writeFile templatePath path content = do
   Settings {..} <- ask
   template <- lift . Slick.compileTemplate' $ source </> getRelativePath templatePath
+  putInfo
+    $ "[writeFile] Writing "
+    <> getRelativePath path
+    <> " with template "
+    <> getRelativePath templatePath
   lift
     . Shake.writeFile' (output </> getRelativePath path)
     . T.unpack
@@ -117,9 +132,21 @@ writeFile templatePath path content = do
 putVerbose :: String -> ReaderT Settings Shake.Action ()
 putVerbose = lift . Shake.putVerbose
 
+putInfo :: String -> ReaderT Settings Shake.Action ()
+putInfo = lift . Shake.putInfo
+
+putWarn :: String -> ReaderT Settings Shake.Action ()
+putWarn = lift . Shake.putWarn
+
+putError :: forall a. String -> ReaderT Settings Shake.Action a
+putError err = do
+  lift $ Shake.putError err
+  crashWith err
+
 removeOutput :: ReaderT Settings Shake.Action ()
 removeOutput = do
   Settings {..} <- ask
+  putInfo $ "[removeOutput] Nuking output " <> output
   liftIO . Shake.removeFiles output $ ["//"]
 
 (%>)
@@ -128,7 +155,8 @@ removeOutput = do
   -> ReaderT Settings Shake.Rules ()
 (%>) pat action = do
   settings@Settings {..} <- ask
-  lift $ (output </> pat) Shake.%> \path ->
+  lift $ (output </> pat) Shake.%> \path -> do
+    Shake.putInfo $ "[%>] Generating " <> path
     flip runReaderT settings
       . action
       . RelativePath
@@ -189,6 +217,8 @@ markdownToMetaAndContent content = do
     writer = Pandoc.writeHtml5String Slick.defaultHtml5Options
   (Pandoc.Pandoc meta' blocks) <- unPandocM $ Pandoc.readMarkdown options content
   meta <- flattenMeta writer meta'
+  Shake.putVerbose $ "Metadata: \n" <> show meta'
+  Shake.putVerbose $ "Content: \n" <> show blocks
   pure (meta, blocks)
 
 flattenMeta :: (Pandoc.Pandoc -> Pandoc.PandocIO T.Text) -> Pandoc.Meta -> Shake.Action Aeson.Value
