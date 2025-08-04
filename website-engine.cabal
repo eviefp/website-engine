@@ -71,7 +71,7 @@ library
   build-depends:
     , aeson
     , attoparsec
-    , base        ^>=4.19.2.0
+    , base        ^>= 4.20.1.0
     , bytestring
     , chronos
     , exceptions
@@ -96,7 +96,7 @@ executable website-engine
 
   main-is:          Main.hs
   build-depends:
-    , base    ^>=4.19.2.0
+    , base    ^>= 4.20.1.0
     , aeson
     , attoparsec
     , bytestring
@@ -127,5 +127,5 @@ test-suite website-engine-test
   hs-source-dirs:   spec
   main-is:          Main.hs
   build-depends:
-    , base    ^>=4.19.2.0
+    , base    ^>= 4.20.1.0
     , website-engine
