@@ -18,6 +18,7 @@ module Blog.Engine
   , addKey
   , takeBaseName
   , options
+  , markdownToMetaAndContent
   )
 where
 
@@ -28,9 +29,12 @@ import qualified Blog.Settings as Settings
 import qualified Blog.Wikilinks as CL
 
 import qualified Chronos
+import qualified Control.Monad.Except as Except
+import qualified Control.Monad.State.Strict as State
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Key as Key
 import qualified Data.Aeson.KeyMap as KeyMap
+import Data.Functor.Identity (runIdentity)
 import qualified Data.Text as T
 import qualified Development.Shake as Shake
 import qualified Development.Shake.FilePath as Shake
@@ -105,7 +109,12 @@ initItemsCache = ReaderT $ \Settings {..} -> do
         postsPaths
         ( \postPath ->
             fmap (mkItem today postPath)
-              . markdownToMetaAndContent
+              . ( \(meta, blocks) -> do
+                    Shake.putVerbose $ "Metadata: \n" <> show meta
+                    Shake.putVerbose $ "Content: \n" <> show blocks
+                    pure (meta, blocks)
+                )
+              <=< markdownToMetaAndContent
               . T.pack
               <=< Shake.readFile'
               . (source </>)
@@ -211,20 +220,19 @@ options =
           ]
     }
 
-markdownToMetaAndContent :: Text -> Shake.Action (Aeson.Value, [Pandoc.Block])
+markdownToMetaAndContent :: (MonadIO m) => Text -> m (Aeson.Value, [Pandoc.Block])
 markdownToMetaAndContent content = do
   let
     writer = Pandoc.writeHtml5String Slick.defaultHtml5Options
   (Pandoc.Pandoc meta' blocks) <- unPandocM $ Pandoc.readMarkdown options content
   meta <- flattenMeta writer meta'
-  Shake.putVerbose $ "Metadata: \n" <> show meta'
-  Shake.putVerbose $ "Content: \n" <> show blocks
   pure (meta, blocks)
 
-flattenMeta :: (Pandoc.Pandoc -> Pandoc.PandocIO T.Text) -> Pandoc.Meta -> Shake.Action Aeson.Value
+flattenMeta
+  :: (MonadIO m) => (Pandoc.Pandoc -> Pandoc.PandocIO T.Text) -> Pandoc.Meta -> m Aeson.Value
 flattenMeta writer (Pandoc.Meta meta) = Aeson.toJSON <$> traverse go meta
  where
-  go :: Pandoc.MetaValue -> Shake.Action Aeson.Value
+  go :: (MonadIO m) => Pandoc.MetaValue -> m Aeson.Value
   go (Pandoc.MetaMap m) = Aeson.toJSON <$> traverse go m
   go (Pandoc.MetaList m) = Aeson.toJSONList <$> traverse go m
   go (Pandoc.MetaBool m) = pure $ Aeson.toJSON m
@@ -235,14 +243,30 @@ flattenMeta writer (Pandoc.Meta meta) = Aeson.toJSON <$> traverse go meta
 genenerateHtmlWithFixedWikiLinks
   :: [(Text, [Item])] -> Text -> [Pandoc.Block] -> Shake.Action Aeson.Value
 genenerateHtmlWithFixedWikiLinks cache def blocks = do
-  fixedBlocks <- PW.walkM (CL.transform cache def) blocks
   let
-    writer = Pandoc.writeHtml5String Slick.defaultHtml5Options
-    doc = Pandoc.Pandoc mempty fixedBlocks
-  outText <- unPandocM $ writer doc
-  pure $ Aeson.String outText
+    (result, logs) =
+      runIdentity
+        . flip State.runStateT []
+        . Except.runExceptT
+        $ PW.walkM (CL.transform cache def) blocks
+  traverse_ printLog logs
+  case result of
+    Left _ -> crashWith "[Wikilinks] unrecoverable error. Stopping."
+    Right fixedBlocks -> do
+      let
+        writer = Pandoc.writeHtml5String Slick.defaultHtml5Options
+        doc = Pandoc.Pandoc mempty fixedBlocks
+      outText <- unPandocM $ writer doc
+      pure $ Aeson.String outText
+ where
+  printLog :: CL.Log -> Shake.Action ()
+  printLog =
+    \case
+      CL.Verbose str -> Shake.putVerbose str
+      CL.Warning str -> Shake.putWarn str
+      CL.Error str -> Shake.putError str
 
-unPandocM :: Pandoc.PandocIO a -> Shake.Action a
+unPandocM :: (MonadIO m) => Pandoc.PandocIO a -> m a
 unPandocM p = do
   result <- liftIO $ Pandoc.runIO p
   either (crashWith . show) pure result

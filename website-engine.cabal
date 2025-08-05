@@ -118,14 +118,27 @@ executable website-engine
   default-language: Haskell2010
 
 test-suite website-engine-test
-  import:           warnings
+  import:
+    extensions
+    , warnings
   default-language: Haskell2010
 
-  -- other-modules:
+  other-modules:
+    Blog.WikilinksSpec
   -- other-extensions:
   type:             exitcode-stdio-1.0
   hs-source-dirs:   spec
-  main-is:          Main.hs
+  main-is:          Spec.hs
   build-depends:
     , base    ^>= 4.20.1.0
     , website-engine
+    , hspec
+    , hspec-core
+    , hspec-discover
+    , hspec-golden
+    , aeson
+    , chronos
+    , mtl
+    , pandoc
+    , pandoc-types
+    , text
