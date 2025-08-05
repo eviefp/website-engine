@@ -15,11 +15,85 @@
   };
 
   outputs = { self, nixpkgs, flake-utils, treefmt-nix, pico-css }:
-    flake-utils.lib.eachDefaultSystem
+    let
+      overlay = final: prev: {
+        haskell = prev.haskell // {
+          packages = prev.haskell.packages // {
+            ghc9102 = prev.haskell.packages.ghc9102.override (prevArgs: {
+              overrides = prev.lib.composeExtensions (prevArgs.overrides or (_: _: { })) (
+                finalHaskell: prevHaskell: {
+                  # needed for the pandoc update; once nixpkgs will have pandoc >= 3.7.0.2
+                  # then we can remove this whole section up until pandoc
+                  commonmark-pandoc = prevHaskell.callHackageDirect
+                    {
+                      pkg = "commonmark-pandoc";
+                      ver = "0.2.3";
+                      sha256 = "sha256-qMfPEBq7kjgFZAxdc84LgoIEzuAS/wAb2CH3LGN3wiE=";
+                    }
+                    { };
+                  texmath = prevHaskell.callHackageDirect
+                    {
+                      pkg = "texmath";
+                      ver = "0.12.10.3";
+                      sha256 = "sha256-kSUGL4nLhroyIntE9vUfec6n6qefgfsZA7FxVM52NQg=";
+                    }
+                    { };
+                  typst = prevHaskell.callHackageDirect
+                    {
+                      pkg = "typst";
+                      ver = "0.8.0.1";
+                      sha256 = "sha256-sv6WF5vfSz+YOvnCBuZxM9pEpqbFGs6B3fsVDZKvFGY=";
+                    }
+                    { };
+                  typst-symbols = prevHaskell.callHackageDirect
+                    {
+                      pkg = "typst-symbols";
+                      ver = "0.1.8.1";
+                      sha256 = "sha256-y4OlWfqMRapDItRBQs19RBXzT3ezsATGi1is1Fdgfl0=";
+                    }
+                    { };
+                  Diff = prevHaskell.callHackageDirect
+                    {
+                      pkg = "Diff";
+                      ver = "1.0.2";
+                      sha256 = "sha256-fRxDSt8/CSGyUrmGNwF22ASjEzIRGifNk3M9j9HrC2g=";
+                    }
+                    { };
+                  citeproc = prevHaskell.callHackageDirect
+                    {
+                      pkg = "citeproc";
+                      ver = "0.9.0.1";
+                      sha256 = "sha256-sRCT3+BWhmgJWcc7pJzLhdGifgqmmXz+4kdEPDracXM=";
+                    }
+                    { };
+                  pandoc = prevHaskell.callHackageDirect
+                    {
+                      pkg = "pandoc";
+                      ver = "3.7.0.2";
+                      sha256 = "sha256-vqmg8sgObF+XTwFtcq2hrmjPczarf8v6TC0FIAtD3ao=";
+                    }
+                    { };
+
+                  website-engine = prevHaskell.callCabal2nix "website-engine" self { };
+                }
+              );
+            });
+          };
+        };
+      };
+    in
+    (flake-utils.lib.eachDefaultSystem
       (system:
         let
+
+          # use this for tooling, higher chances of nixos cache hits
           pkgs = import nixpkgs {
             inherit system;
+          };
+          # use this for haskellPackages
+          pkgs-pandoc-upgrade = import nixpkgs {
+            inherit system;
+            overlays = [ overlay ];
           };
 
           treefmt-config = {
@@ -33,63 +107,7 @@
           };
           treefmt = (treefmt-nix.lib.evalModule pkgs treefmt-config).config.build;
 
-          haskellPackages = pkgs.haskell.packages.ghc9102.override {
-            overrides = final: prev: {
-              # needed for the pandoc update; once nixpkgs will have pandoc >= 3.7.0.2
-              # then we can remove this whole section up until pandoc
-              commonmark-pandoc = final.callHackageDirect
-                {
-                  pkg = "commonmark-pandoc";
-                  ver = "0.2.3";
-                  sha256 = "sha256-qMfPEBq7kjgFZAxdc84LgoIEzuAS/wAb2CH3LGN3wiE=";
-                }
-                { };
-              texmath = final.callHackageDirect
-                {
-                  pkg = "texmath";
-                  ver = "0.12.10.3";
-                  sha256 = "sha256-kSUGL4nLhroyIntE9vUfec6n6qefgfsZA7FxVM52NQg=";
-                }
-                { };
-              typst = final.callHackageDirect
-                {
-                  pkg = "typst";
-                  ver = "0.8.0.1";
-                  sha256 = "sha256-sv6WF5vfSz+YOvnCBuZxM9pEpqbFGs6B3fsVDZKvFGY=";
-                }
-                { };
-              typst-symbols = final.callHackageDirect
-                {
-                  pkg = "typst-symbols";
-                  ver = "0.1.8.1";
-                  sha256 = "sha256-y4OlWfqMRapDItRBQs19RBXzT3ezsATGi1is1Fdgfl0=";
-                }
-                { };
-              Diff = final.callHackageDirect
-                {
-                  pkg = "Diff";
-                  ver = "1.0.2";
-                  sha256 = "sha256-fRxDSt8/CSGyUrmGNwF22ASjEzIRGifNk3M9j9HrC2g=";
-                }
-                { };
-              citeproc = final.callHackageDirect
-                {
-                  pkg = "citeproc";
-                  ver = "0.9.0.1";
-                  sha256 = "sha256-sRCT3+BWhmgJWcc7pJzLhdGifgqmmXz+4kdEPDracXM=";
-                }
-                { };
-              pandoc = final.callHackageDirect
-                {
-                  pkg = "pandoc";
-                  ver = "3.7.0.2";
-                  sha256 = "sha256-vqmg8sgObF+XTwFtcq2hrmjPczarf8v6TC0FIAtD3ao=";
-                }
-                { };
-
-              website-engine = final.callCabal2nix "website-engine" ./. { };
-            };
-          };
+          haskellPackages = pkgs-pandoc-upgrade.haskell.packages.ghc9102;
         in
         {
           formatter = treefmt.wrapper;
@@ -114,7 +132,6 @@
               # use the default executables in order to hopefully hit the nixos cache
               pkgs.haskell.packages.ghc9102.cabal-install
               pkgs.haskell.packages.ghc9102.haskell-language-server
-              pkgs.haskell.packages.ghc9102.hspec-golden
 
               pkgs.http-server
               pkgs.zlib.dev
@@ -124,5 +141,8 @@
             '';
           };
         }
-      );
+      )
+    // {
+      overlays.default = overlay;
+    });
 }
