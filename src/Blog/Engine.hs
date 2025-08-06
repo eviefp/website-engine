@@ -5,38 +5,43 @@ module Blog.Engine
   , initItemsCache
   , writeFile
   , putVerbose
+  , putInfo
+  , putWarn
+  , putError
   , removeOutput
   , (%>)
   , need
   , need'
-  , (<!>)
   , (~>)
-  , MetadataError (..)
-  , Item (..)
   , RelativePath (..)
   , withMetadataObject
   , addKey
   , takeBaseName
   , options
+  , markdownToMetaAndContent
   )
 where
 
+import Blog.Item
 import Blog.Prelude
 import Blog.Settings (Settings (Settings))
 import qualified Blog.Settings as Settings
+import qualified Blog.Wikilinks as CL
 
 import qualified Chronos
-import Control.Lens ((^?))
+import qualified Control.Monad.Except as Except
+import qualified Control.Monad.State.Strict as State
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Key as Key
 import qualified Data.Aeson.KeyMap as KeyMap
-import qualified Data.Attoparsec.Text as AP
+import Data.Functor.Identity (runIdentity)
 import qualified Data.Text as T
 import qualified Development.Shake as Shake
 import qualified Development.Shake.FilePath as Shake
 import qualified Slick
 import qualified Slick.Pandoc as Slick
 import qualified Text.Pandoc as Pandoc
+import qualified Text.Pandoc.Walk as PW
 
 want :: [RelativePath] -> ReaderT Settings Shake.Rules ()
 want files = do
@@ -46,7 +51,9 @@ want files = do
 copyFile :: RelativePath -> RelativePath -> ReaderT Settings Shake.Action ()
 copyFile src dest = do
   Settings {..} <- ask
+  putInfo $ "[copyFile] " <> getRelativePath src <> " -> " <> getRelativePath dest
   lift
+    . Shake.quietly
     $ Shake.copyFileChanged
       (source </> getRelativePath src)
       (output </> getRelativePath dest)
@@ -55,13 +62,16 @@ generatePage
   :: String
   -> RelativePath
   -> RelativePath
-  -> [(Item, Aeson.Value)]
+  -> [(Text, [Item])]
   -> ReaderT Settings Shake.Action ()
-generatePage name path templatePath pages = do
+generatePage name path templatePath cache = do
   Settings {..} <- ask
-  case find ((== takeBaseName path) . T.unpack . id . fst) pages of
+  items <- case lookup (T.pack name) cache of
+    Nothing -> putError $ "[generatePage] Cannot find item in cache: " <> name
+    Just i -> pure i
+  case find ((== takeBaseName path) . T.unpack . id) items of
     Nothing ->
-      crashWith
+      putError
         . join
         $ [ "["
           , name
@@ -70,20 +80,28 @@ generatePage name path templatePath pages = do
           , " :"
           , source </> getRelativePath path
           ]
-    Just (item, json) -> do
+    Just item -> do
       need . fmap (RelativePath . ("tag" </>) . (-<.> "html") . T.unpack) . tags $ item
+
+      putVerbose $ "[generatePage] Generating content for " <> getRelativePath path
+      content <- lift . genenerateHtmlWithFixedWikiLinks cache (T.pack name) . documentContent $ item
+      putVerbose $ "[generatePage] Generated content:\n" <> show content
+
+      putInfo $ "[generatePage] Generated " <> getRelativePath path
       writeFile templatePath path
         . withMetadataObject name
+        . addKey "content" content
         . Aeson.toJSON
-        $ json
+        . metadata
+        $ item
 
 initItemsCache
   :: ReaderT
       Settings
       Shake.Rules
-      ([Shake.FilePattern] -> ReaderT Settings Shake.Action [(Item, Aeson.Value)])
+      ((Text, [Shake.FilePattern]) -> ReaderT Settings Shake.Action (Text, [Item]))
 initItemsCache = ReaderT $ \Settings {..} -> do
-  (fmap . fmap) lift . Shake.newCache $ \path -> do
+  (fmap . fmap) lift . Shake.newCache $ \(k, path) -> do
     postsPaths <- Shake.getDirectoryFiles source path
     today <- liftIO Chronos.today
     items <-
@@ -91,19 +109,29 @@ initItemsCache = ReaderT $ \Settings {..} -> do
         postsPaths
         ( \postPath ->
             fmap (mkItem today postPath)
-              . Slick.markdownToHTMLWithOpts options Slick.defaultHtml5Options
+              . ( \(meta, blocks) -> do
+                    Shake.putVerbose $ "Metadata: \n" <> show meta
+                    Shake.putVerbose $ "Content: \n" <> show blocks
+                    pure (meta, blocks)
+                )
+              <=< markdownToMetaAndContent
               . T.pack
               <=< Shake.readFile'
               . (source </>)
               $ postPath
         )
-    traverse_ (Shake.putVerbose . show) . lefts $ items
-    pure . rights $ items
+    traverse_ (Shake.putInfo . show) . lefts $ items
+    pure . (k,) . rights $ items
 
 writeFile :: RelativePath -> RelativePath -> Aeson.Value -> ReaderT Settings Shake.Action ()
 writeFile templatePath path content = do
   Settings {..} <- ask
   template <- lift . Slick.compileTemplate' $ source </> getRelativePath templatePath
+  putInfo
+    $ "[writeFile] Writing "
+    <> getRelativePath path
+    <> " with template "
+    <> getRelativePath templatePath
   lift
     . Shake.writeFile' (output </> getRelativePath path)
     . T.unpack
@@ -113,9 +141,21 @@ writeFile templatePath path content = do
 putVerbose :: String -> ReaderT Settings Shake.Action ()
 putVerbose = lift . Shake.putVerbose
 
+putInfo :: String -> ReaderT Settings Shake.Action ()
+putInfo = lift . Shake.putInfo
+
+putWarn :: String -> ReaderT Settings Shake.Action ()
+putWarn = lift . Shake.putWarn
+
+putError :: forall a. String -> ReaderT Settings Shake.Action a
+putError err = do
+  lift $ Shake.putError err
+  crashWith err
+
 removeOutput :: ReaderT Settings Shake.Action ()
 removeOutput = do
   Settings {..} <- ask
+  putInfo $ "[removeOutput] Nuking output " <> output
   liftIO . Shake.removeFiles output $ ["//"]
 
 (%>)
@@ -124,7 +164,8 @@ removeOutput = do
   -> ReaderT Settings Shake.Rules ()
 (%>) pat action = do
   settings@Settings {..} <- ask
-  lift $ (output </> pat) Shake.%> \path ->
+  lift $ (output </> pat) Shake.%> \path -> do
+    Shake.putInfo $ "[%>] Generating " <> path
     flip runReaderT settings
       . action
       . RelativePath
@@ -142,10 +183,6 @@ need' pat = do
   lift do
     Shake.getDirectoryFiles source pat >>= Shake.need . fmap (output </>)
 
-(<!>) :: Maybe b -> a -> Either a b
-(<!>) mb err = maybe (Left err) Right mb
-infixr 7 <!>
-
 (~>) :: String -> ReaderT Settings Shake.Action () -> ReaderT Settings Shake.Rules ()
 (~>) name act = do
   settings <- ask
@@ -154,19 +191,6 @@ infixr 7 <!>
 newtype RelativePath = RelativePath
   { getRelativePath :: FilePath
   }
-
-data Item = Item
-  { id :: Text
-  , title :: Text
-  , publish :: Date
-  , tags :: [Text]
-  }
-
-data MetadataError
-  = MissingKey FilePath String
-  | MalformedPublishDate FilePath String
-  | PostNotPublishedYet FilePath Text
-  deriving stock (Show)
 
 withMetadataObject :: String -> Aeson.Value -> Aeson.Value
 withMetadataObject name json = Aeson.Object $ KeyMap.singleton (Key.fromString name) json
@@ -196,30 +220,46 @@ options =
           ]
     }
 
--- perhaps use something other than `Maybe` and upstream the error/reason?
--- I'd like to see "skipped because future", "could not parse date" as an error etc
-mkItem :: Chronos.Day -> FilePath -> Aeson.Value -> Either MetadataError (Item, Aeson.Value)
-mkItem day p v = do
-  id <- v ^? key "id" . _String <!> MissingKey p "id"
-  title <- v ^? key "title" . _String <!> MissingKey p "title"
-  pub <- v ^? key "publish" . _String <!> MissingKey p "publish"
-  publish <- case AP.parseOnly (Chronos.parser_Dmy $ Just '-') pub of
-    Left err -> Left $ MalformedPublishDate p err
-    Right d -> pure d
+markdownToMetaAndContent :: (MonadIO m) => Text -> m (Aeson.Value, [Pandoc.Block])
+markdownToMetaAndContent content = do
   let
-    tags = v ^.. key "tags" . values . _String
-  if Chronos.dayToDate day < publish
-    then Left $ PostNotPublishedYet p id
-    else
+    writer = Pandoc.writeHtml5String Slick.defaultHtml5Options
+  (Pandoc.Pandoc meta' blocks) <- unPandocM $ Pandoc.readMarkdown options content
+  meta <- flattenMeta writer meta'
+  pure (meta, blocks)
+
+flattenMeta
+  :: (MonadIO m) => (Pandoc.Pandoc -> Pandoc.PandocIO T.Text) -> Pandoc.Meta -> m Aeson.Value
+flattenMeta writer (Pandoc.Meta meta) = Aeson.toJSON <$> traverse go meta
+ where
+  go :: (MonadIO m) => Pandoc.MetaValue -> m Aeson.Value
+  go (Pandoc.MetaMap m) = Aeson.toJSON <$> traverse go m
+  go (Pandoc.MetaList m) = Aeson.toJSONList <$> traverse go m
+  go (Pandoc.MetaBool m) = pure $ Aeson.toJSON m
+  go (Pandoc.MetaString m) = pure $ Aeson.toJSON m
+  go (Pandoc.MetaInlines m) = Aeson.toJSON <$> (unPandocM . writer . Pandoc.Pandoc mempty . (: []) . Pandoc.Plain $ m)
+  go (Pandoc.MetaBlocks m) = Aeson.toJSON <$> (unPandocM . writer . Pandoc.Pandoc mempty $ m)
+
+genenerateHtmlWithFixedWikiLinks
+  :: [(Text, [Item])] -> Text -> [Pandoc.Block] -> Shake.Action Aeson.Value
+genenerateHtmlWithFixedWikiLinks cache def blocks = do
+  let
+    (result, logs) =
+      runIdentity
+        . flip State.runStateT []
+        . Except.runExceptT
+        $ PW.walkM (CL.transform cache def) blocks
+  traverse_ CL.printLog logs
+  case result of
+    Left _ -> crashWith "[Wikilinks] unrecoverable error. Stopping."
+    Right fixedBlocks -> do
       let
-        changelog = v ^? key "changelog" . _Array
-        -- if `renderChangelog` is present, return that value
-        -- if not, if `changelog` is not present, return False
-        -- else, return whether the changelog is not empty
-        renderChangelog = maybe (maybe False (not . null) changelog) identity $ v ^? key "renderChangelog" . _Bool
-        renderChangelog' = Aeson.Bool . maybe renderChangelog ((&& renderChangelog) . not . null) $ changelog
-        value = case v of
-          Aeson.Object kv -> Aeson.Object $ KeyMap.insert "renderChangelog" renderChangelog' kv
-          _ -> v
-      in
-        pure (Item {..}, value)
+        writer = Pandoc.writeHtml5String Slick.defaultHtml5Options
+        doc = Pandoc.Pandoc mempty fixedBlocks
+      outText <- unPandocM $ writer doc
+      pure $ Aeson.String outText
+
+unPandocM :: (MonadIO m) => Pandoc.PandocIO a -> m a
+unPandocM p = do
+  result <- liftIO $ Pandoc.runIO p
+  either (crashWith . show) pure result

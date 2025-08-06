@@ -9,6 +9,10 @@ tags:
 
 Part of [[website-engine]]
 
+Do self-links work? [[wiki]]
+
+And what about custom texts? [[/wiki/website-engine|custom]]
+
 TODO: explain
 
 

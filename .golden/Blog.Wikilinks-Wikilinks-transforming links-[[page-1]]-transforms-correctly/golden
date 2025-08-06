@@ -1,0 +1,3 @@
+Right (Link ("",["wikilink"],[]) [Str "page-1-title"] ("page-1","page-1-title"))
+Verbose "[WikiLinks] Original link Link (\"\",[\"wikilink\"],[]) [Str \"page-1\"] (\"page-1\",\"\")"
+Verbose "[WikiLinks] Fixed link Link (\"\",[\"wikilink\"],[]) [Str \"page-1-title\"] (\"page-1\",\"page-1-title\")"
