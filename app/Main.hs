@@ -49,9 +49,9 @@ run = do
     pages <- itemsCache page
     wikis <- itemsCache wiki
 
-    need . fmap (RelativePath . (-<.> "html") . ("post/" </>) . T.unpack . id) . snd $ posts
-    need . fmap (RelativePath . (-<.> "html") . ("page/" </>) . T.unpack . id) . snd $ pages
-    need . fmap (RelativePath . (-<.> "html") . ("wiki/" </>) . T.unpack . id) . snd $ wikis
+    need . fmap (RelativePath . ("post" </>) . (-<.> "html") . T.unpack . id) . snd $ posts
+    need . fmap (RelativePath . ("page" </>) . (-<.> "html") . T.unpack . id) . snd $ pages
+    need . fmap (RelativePath . ("wiki" </>) . (-<.> "html") . T.unpack . id) . snd $ wikis
 
     let
       sortedPosts = sortOn (Down . publish) $ snd posts
