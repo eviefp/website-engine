@@ -11,6 +11,7 @@ import qualified Data.Aeson.KeyMap as Aeson
 import qualified Data.Aeson.Types as Aeson
 import qualified Data.Text as T
 
+-- | Used by 'RelativePath' to describe source and output relative paths.
 data Settings = Settings
   { source :: FilePath
   , output :: FilePath
