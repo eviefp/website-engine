@@ -136,6 +136,7 @@
 
             # by building the project, nix also runs the tests automatically
             hstests = pkgs.runCommand "hstests" { buildInputs = [ website-engine ]; } ''
+              touch $out
             '';
           };
 

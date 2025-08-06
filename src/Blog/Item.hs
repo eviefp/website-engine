@@ -14,25 +14,34 @@ import qualified Data.Aeson.KeyMap as KeyMap
 import qualified Data.Attoparsec.Text as AP
 import qualified Text.Pandoc as Pandoc
 
+-- | Holds data about an item/post.
+-- All the metadata fields (id, title, etc.) are also present in 'metadata' as raw JSON.
 data Item = Item
   { id :: Text
   , title :: Text
   , publish :: Date
   , tags :: [Text]
   , metadata :: Aeson.Value
+  -- ^ yaml metadata from the markdown files; contains all of the above fields as well
+  -- all the fields are parsed as markdown and will be converted to html!
   , documentContent :: [Pandoc.Block]
+  -- ^ pandoc-representation of the markdown content
   }
 
+-- | Represents an error in parsing the metadata.
 data MetadataError
   = MissingKey FilePath String
   | MalformedPublishDate FilePath String
   | PostNotPublishedYet FilePath Text
   deriving stock (Show)
 
+-- | Add an error 'note' to a 'Maybe', in case it is 'Nothing'.
 (<!>) :: Maybe b -> a -> Either a b
 (<!>) mb err = maybe (Left err) Right mb
+
 infixr 7 <!>
 
+-- | Parse an 'Item' out of a markdown file.
 mkItem
   :: Chronos.Day -> FilePath -> (Aeson.Value, [Pandoc.Block]) -> Either MetadataError Item
 mkItem day p (v, documentContent) = do
