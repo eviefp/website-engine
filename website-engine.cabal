@@ -1,17 +1,17 @@
-cabal-version:   3.4
-name:            website-engine
-version:         0.1.0.0
+cabal-version: 3.4
+name:          website-engine
+version:       0.1.0.0
 
 -- synopsis:
 -- description:
-license:         MIT
-license-file:    LICENSE
-author:          Evie Ciobanu
-maintainer:      me@evie.ro
+license:       MIT
+license-file:  LICENSE
+author:        Evie Ciobanu
+maintainer:    me@evie.ro
 
 -- copyright:
-category:        Web
-build-type:      Simple
+category:      Web
+build-type:    Simple
 
 -- extra-source-files:
 
@@ -71,7 +71,7 @@ library
   build-depends:
     , aeson
     , attoparsec
-    , base        ^>= 4.20.1.0
+    , base          ^>=4.20.1.0
     , bytestring
     , chronos
     , exceptions
@@ -96,9 +96,9 @@ executable website-engine
 
   main-is:          Main.hs
   build-depends:
-    , base    ^>= 4.20.1.0
     , aeson
     , attoparsec
+    , base            ^>=4.20.1.0
     , bytestring
     , chronos
     , exceptions
@@ -121,24 +121,24 @@ test-suite website-engine-test
   import:
     extensions
     , warnings
-  default-language: Haskell2010
 
-  other-modules:
-    Blog.WikilinksSpec
+  default-language: Haskell2010
+  other-modules:    Blog.WikilinksSpec
+
   -- other-extensions:
   type:             exitcode-stdio-1.0
   hs-source-dirs:   spec
   main-is:          Spec.hs
   build-depends:
-    , base    ^>= 4.20.1.0
-    , website-engine
+    , aeson
+    , base            ^>=4.20.1.0
+    , chronos
     , hspec
     , hspec-core
     , hspec-discover
     , hspec-golden
-    , aeson
-    , chronos
     , mtl
     , pandoc
     , pandoc-types
     , text
+    , website-engine

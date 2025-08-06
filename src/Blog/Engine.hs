@@ -249,7 +249,7 @@ genenerateHtmlWithFixedWikiLinks cache def blocks = do
         . flip State.runStateT []
         . Except.runExceptT
         $ PW.walkM (CL.transform cache def) blocks
-  traverse_ printLog logs
+  traverse_ CL.printLog logs
   case result of
     Left _ -> crashWith "[Wikilinks] unrecoverable error. Stopping."
     Right fixedBlocks -> do
@@ -258,13 +258,6 @@ genenerateHtmlWithFixedWikiLinks cache def blocks = do
         doc = Pandoc.Pandoc mempty fixedBlocks
       outText <- unPandocM $ writer doc
       pure $ Aeson.String outText
- where
-  printLog :: CL.Log -> Shake.Action ()
-  printLog =
-    \case
-      CL.Verbose str -> Shake.putVerbose str
-      CL.Warning str -> Shake.putWarn str
-      CL.Error str -> Shake.putError str
 
 unPandocM :: (MonadIO m) => Pandoc.PandocIO a -> m a
 unPandocM p = do

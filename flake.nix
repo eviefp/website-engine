@@ -16,6 +16,9 @@
 
   outputs = { self, nixpkgs, flake-utils, treefmt-nix, pico-css }:
     let
+      # overlays are a way to basically edit packages in a `nixpkgs` instance
+      # we use it to update a few Haskell packages and to add the engine to the
+      # list of available Haskell packages
       overlay = final: prev: {
         haskell = prev.haskell // {
           packages = prev.haskell.packages // {
@@ -74,6 +77,7 @@
                     }
                     { };
 
+                  # add the engine to the list of available packages
                   website-engine = prevHaskell.callCabal2nix "website-engine" self { };
                 }
               );
@@ -96,6 +100,7 @@
             overlays = [ overlay ];
           };
 
+          # used for formatting
           treefmt-config = {
             projectRootFile = "flake.nix";
             programs = {
@@ -107,22 +112,37 @@
           };
           treefmt = (treefmt-nix.lib.evalModule pkgs treefmt-config).config.build;
 
+          # used for brevity :)
           haskellPackages = pkgs-pandoc-upgrade.haskell.packages.ghc9102;
+
+          # our package
+          website-engine = haskellPackages.callCabal2nix "website-engine" ./. { };
         in
         {
+          # run with `nix fmt`
           formatter = treefmt.wrapper;
 
+          # run with `nix flake check`
           checks = {
+            # run the formatter in check mode (errors instead of fixing)
             fmt = treefmt.check self;
+
+            # haskell lints
             hlint = pkgs.runCommand "hlint" { buildInputs = [ pkgs.hlint ]; } ''
               cd ${./.}
               hlint src spec app
               touch $out
             '';
+
+            # by building the project, nix also runs the tests automatically
+            hstests = pkgs.runCommand "hstests" { buildInputs = [ website-engine ]; } ''
+            '';
           };
 
-          packages.default = haskellPackages.callCabal2nix "website-engine" ./. { };
+          # expose the default executable; run with `nix run .#default`
+          packages.default = website-engine;
 
+          # default shell; run with `nix develop` or use `direnv`
           devShells.default = haskellPackages.shellFor {
             packages = p: [ p.website-engine ];
             name = "website-engine-shell";

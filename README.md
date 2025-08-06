@@ -1,12 +1,5 @@
 # TODO
 
-This PR:
-- [x] go back and rewrite history removing pointless debugging things
-- [x] keep verbose output but move some stuff to info and change the default to be info
-- [x] add some tests around the wikilinks stuff
-- [x] how do I not copy/paste the haskellPackages? do I just have a separate nix file defining haskellPackages?
-- [ ] move over things to website
-
 - RSS helpers?
 - use https://hackage.haskell.org/package/shake-plus-0.3.4.0/docs/Development-Shake-Plus-Core.html#t:RAction
 - look into https://hackage.haskell.org/package/shake-minify

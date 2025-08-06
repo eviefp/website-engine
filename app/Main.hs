@@ -26,7 +26,7 @@ main = do
       , Shake.shakeTimings = False
       , Shake.shakeLintInside = [Settings.source settings]
       , Shake.shakeColor = True
-      , Shake.shakeVerbosity = Shake.Info
+      , Shake.shakeVerbosity = Shake.Verbose
       , Shake.shakeProgress = Shake.progressSimple
       }
 

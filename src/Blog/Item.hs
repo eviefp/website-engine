@@ -33,8 +33,6 @@ data MetadataError
 (<!>) mb err = maybe (Left err) Right mb
 infixr 7 <!>
 
--- perhaps use something other than `Maybe` and upstream the error/reason?
--- I'd like to see "skipped because future", "could not parse date" as an error etc
 mkItem
   :: Chronos.Day -> FilePath -> (Aeson.Value, [Pandoc.Block]) -> Either MetadataError Item
 mkItem day p (v, documentContent) = do

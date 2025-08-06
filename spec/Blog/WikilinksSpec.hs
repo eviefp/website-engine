@@ -1,23 +1,25 @@
+{-# OPTIONS_GHC -Wno-orphans #-}
+
 module Blog.WikilinksSpec
   ( spec
   ) where
 
 import qualified Blog.Engine as Engine
-import Blog.Prelude
-
-import qualified Data.Text as T
-
 import Blog.Item (Item (..))
-import Blog.Wikilinks (transform)
+import Blog.Prelude
+import Blog.Wikilinks (Log (..), transform)
+
 import qualified Chronos
 import qualified Control.Monad.Except as Except
 import qualified Control.Monad.State.Strict as State
 import qualified Data.Aeson as Aeson
 import Data.Functor.Identity (runIdentity)
 import Data.List (unlines)
+import qualified Data.Text as T
+import qualified Text.Pandoc as Pandoc
+
 import Test.Hspec
 import qualified Test.Hspec.Golden as Golden
-import qualified Text.Pandoc as Pandoc
 
 spec :: Spec
 spec = do
@@ -104,7 +106,7 @@ goldenTransformLink TransformLinkSpec {..} =
           . Except.runExceptT
           . transform (sampleCache today) itemKey
           $ Pandoc.Link ("", attr, []) [Pandoc.Str $ T.pack content] (url, title)
-    pure $ (show result <> "\n" <> unlines (show <$> logs))
+    pure $ show result <> "\n" <> unlines (show <$> logs)
 
 sampleCache :: Chronos.Day -> [(Text, [Item])]
 sampleCache today =
@@ -147,3 +149,5 @@ sampleCache today =
       ]
     )
   ]
+
+deriving instance Show Log
