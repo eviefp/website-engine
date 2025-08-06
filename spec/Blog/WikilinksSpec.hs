@@ -23,10 +23,13 @@ spec :: Spec
 spec = do
   context "Wikilinks" do
     context "pandoc regression tests -- parsing links" do
-      goldenMarkdownToMetaAndContent "[link]"
-      goldenMarkdownToMetaAndContent "[title](link)"
-      goldenMarkdownToMetaAndContent "[[link]]"
-      goldenMarkdownToMetaAndContent "[[link|title]]"
+      traverse_
+        goldenMarkdownToMetaAndContent
+        [ "[link]"
+        , "[title](link)"
+        , "[[link]]"
+        , "[[link|title]]"
+        ]
 
     context "transforming links" do
       traverse_
