@@ -11,31 +11,27 @@ import Blog.Types (Rules)
 import qualified Data.Aeson as Aeson
 import qualified Data.Text as T
 import qualified Development.Shake as Shake
-import qualified Development.Shake.Plus as SP
 import qualified Path as P
 
 -- This is just a sample generator. You should use the library and write your own.
 main :: IO ()
 main = do
-  source <- P.parseRelDir "site"
-  output <- P.parseRelDir "docs"
-  Shake.shakeArgs (shakeOpts Settings {..})
-    $ SP.runShakePlus Settings {..} run
- where
-  shakeOpts :: Settings -> Shake.ShakeOptions
-  shakeOpts s =
+  settings <- Settings <$> P.parseRelDir "site" <*> P.parseRelDir "docs"
+  runEngine
     Shake.shakeOptions
       { Shake.shakeLint = Just Shake.LintBasic
       , Shake.shakeTimings = False
-      , Shake.shakeLintInside = P.toFilePath <$> [Settings.source s]
+      , Shake.shakeLintInside = P.toFilePath <$> [Settings.source settings]
       , Shake.shakeColor = True
       , Shake.shakeVerbosity = Shake.Verbose
       , Shake.shakeProgress = Shake.progressSimple
       }
+    settings
+    run
 
 run :: Rules ()
 run = do
-  want [[outputRelFile|"index.html"|]]
+  want [[outputRelFile|index.html|]]
 
   let
     post = ("post", ["post//*.md"])
@@ -52,31 +48,13 @@ run = do
     pages <- itemsCache page
     wikis <- itemsCache wiki
 
-    need
-      . fmap ([outputRelDir|"post"|] </>)
-      <=< traverse (P.addExtension "html")
-      <=< traverse P.parseRelFile
-      . fmap (T.unpack . getItemId . id)
-      . snd
-      $ posts
-    need
-      . fmap ([outputRelDir|"page"|] </>)
-      <=< traverse (P.addExtension "html")
-      <=< traverse P.parseRelFile
-      . fmap (T.unpack . getItemId . id)
-      . snd
-      $ pages
-    need
-      . fmap ([outputRelDir|"wiki"|] </>)
-      <=< traverse (P.addExtension "html")
-      <=< traverse P.parseRelFile
-      . fmap (T.unpack . getItemId . id)
-      . snd
-      $ wikis
+    needItems posts
+    needItems pages
+    needItems wikis
 
     let
       sortedPosts = sortOn (Down . publish) $ snd posts
-    writeFile [sourceRelFile|"template/index.html"|] path
+    writeFile [sourceRelFile|template/index.html|] path
       . withMetadataObject "posts"
       . Aeson.toJSON
       . fmap metadata
@@ -96,7 +74,7 @@ run = do
       , itemsCache page
       , itemsCache wiki
       ]
-      >>= generatePage "post" path [sourceRelFile|"template/post.html"|]
+      >>= generatePage "post" path [sourceRelFile|template/post.html|]
   "post/content//*" %> \path ->
     copyFile (asSourceRel path) path
 
@@ -108,7 +86,7 @@ run = do
       , itemsCache page
       , itemsCache wiki
       ]
-      >>= generatePage "page" path [sourceRelFile|"template/page.html"|]
+      >>= generatePage "page" path [sourceRelFile|template/page.html|]
   "page/content//*" %> \path ->
     copyFile (asSourceRel path) path
 
@@ -120,7 +98,7 @@ run = do
       , itemsCache page
       , itemsCache wiki
       ]
-      >>= generatePage "wiki" path [sourceRelFile|"template/wiki.html"|]
+      >>= generatePage "wiki" path [sourceRelFile|template/wiki.html|]
   "wiki/content//*" %> \path ->
     copyFile (asSourceRel path) path
 
@@ -136,7 +114,7 @@ run = do
       pages = filter ((tagName `elem`) . tags) . snd $ allPages
       wikis = filter ((tagName `elem`) . tags) . snd $ allWikis
 
-    writeFile [sourceRelFile|"template/tag.html"|] path
+    writeFile [sourceRelFile|template/tag.html|] path
       . addKey "posts" (Aeson.toJSON $ fmap metadata posts)
       . addKey "pages" (Aeson.toJSON $ fmap metadata pages)
       . addKey "wikis" (Aeson.toJSON $ fmap metadata wikis)

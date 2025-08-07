@@ -9,6 +9,7 @@ module Blog.Path
   , outputRelDir
   , sourceRelFile
   , sourceRelDir
+  , pathToString
   ) where
 
 import Blog.Prelude
@@ -27,6 +28,17 @@ data OutputRel
 -- | Source-relative path.
 data SourceRel
 
+pathToString :: P.Path b t -> FilePath
+pathToString (PI.Path p) = stripPrefix p
+ where
+  stripPrefix = \case
+    '"' : rest -> stripSuffix rest
+    other -> stripSuffix other
+  stripSuffix = \case
+    '"' : [] -> []
+    [] -> []
+    x : xs -> x : stripSuffix xs
+
 -- | This path should be assumed to be relative to the output.
 -- Its internal representation/path does *NOT* include the output directory,
 -- but will signal to 'Blog.Engine' functions to prepend it.
@@ -42,12 +54,12 @@ asSourceRel (PI.Path p) = PI.Path p
 -- | Prepend the output path.
 -- 'm' can be 'Action' or 'Rules'.
 outputToRel :: (MonadReader Settings m) => P.Path OutputRel t -> m (P.Path P.Rel t)
-outputToRel (PI.Path p) = (P.</> PI.Path p) <$> asks output
+outputToRel (PI.Path p) = (</> PI.Path p) <$> asks output
 
 -- | Prepend the source path.
 -- 'm' can be 'Action' or 'Rules'.
 sourceToRel :: (MonadReader Settings m) => P.Path SourceRel t -> m (P.Path P.Rel t)
-sourceToRel (PI.Path p) = (P.</> PI.Path p) <$> asks source
+sourceToRel (PI.Path p) = (</> PI.Path p) <$> asks source
 
 mkOutputRelFile :: FilePath -> Q Exp
 mkOutputRelFile = either (crashWith . show) (TH.lift . asOutputRel) . parseRelFile

@@ -116,7 +116,6 @@ executable website-engine
     , pandoc-types
     , path
     , shake
-    , shake-plus
     , slick
     , text
     , vector

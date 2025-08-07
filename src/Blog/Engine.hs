@@ -1,5 +1,6 @@
 module Blog.Engine
-  ( want
+  ( runEngine
+  , want
   , copyFile
   , generatePage
   , initItemsCache
@@ -12,6 +13,7 @@ module Blog.Engine
   , (%>)
   , need
   , need'
+  , needItems
   , (~>)
   , withMetadataObject
   , addKey
@@ -45,6 +47,11 @@ import qualified Slick.Pandoc as Slick
 import qualified System.FilePath as U
 import qualified Text.Pandoc as Pandoc
 import qualified Text.Pandoc.Walk as PW
+
+runEngine :: Shake.ShakeOptions -> Settings.Settings -> Rules () -> IO ()
+runEngine args settings rules =
+  Shake.shakeArgs args
+    $ SP.runShakePlus settings rules
 
 -- | Will attempt to find the appropriate Rules that match the requested paths.
 --
@@ -103,7 +110,7 @@ generatePage name path templatePath cache = do
           ]
     Just item -> do
       need
-        . fmap ([outputRelDir|"tag"|] </>)
+        . fmap ([outputRelDir|tag|] </>)
         <=< traverse (addExtension ".html")
         <=< traverse parseRelFile
         $ (T.unpack . getTagName <$> tags item)
@@ -229,6 +236,18 @@ need' :: [Shake.FilePattern] -> Action ()
 need' pat = do
   source <- asks Settings.source
   SP.getDirectoryFiles source pat >>= need . fmap asOutputRel
+
+-- | Needs all items in a cache.
+-- Assumes that the output path is @<ItemKind>/<itemId.html>@
+needItems :: (ItemKind, [Item]) -> Action ()
+needItems (itemKind, items) = do
+  itemDir <- fmap asOutputRel . parseRelDir . T.unpack . getItemKind $ itemKind
+  need
+    . fmap (itemDir </>)
+    <=< traverse (addExtension ".html")
+    <=< traverse parseRelFile
+    . fmap (T.unpack . getItemId . id)
+    $ items
 
 -- | Declare a pseudo-rule using a name rather than a path.
 -- This is required because @'(%>)'@ would crash the program if used with a fake name.
