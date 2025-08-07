@@ -1,5 +1,7 @@
 module Blog.Item
   ( Item (..)
+  , ItemId (..)
+  , TagName (..)
   , MetadataError (..)
   , (<!>)
   , mkItem
@@ -14,13 +16,23 @@ import qualified Data.Aeson.KeyMap as KeyMap
 import qualified Data.Attoparsec.Text as AP
 import qualified Text.Pandoc as Pandoc
 
+newtype ItemId = ItemId
+  { getItemId :: Text
+  }
+  deriving newtype (Show, Eq)
+
+newtype TagName = TagName
+  { getTagName :: Text
+  }
+  deriving newtype (Eq)
+
 -- | Holds data about an item/post.
 -- All the metadata fields (id, title, etc.) are also present in 'metadata' as raw JSON.
 data Item = Item
-  { id :: Text
+  { id :: ItemId
   , title :: Text
   , publish :: Date
-  , tags :: [Text]
+  , tags :: [TagName]
   , metadata :: Aeson.Value
   -- ^ yaml metadata from the markdown files; contains all of the above fields as well
   -- all the fields are parsed as markdown and will be converted to html!
@@ -32,7 +44,7 @@ data Item = Item
 data MetadataError
   = MissingKey (Path Rel File) String
   | MalformedPublishDate (Path Rel File) String
-  | PostNotPublishedYet (Path Rel File) Text
+  | PostNotPublishedYet (Path Rel File) ItemId
   deriving stock (Show)
 
 -- | Add an error 'note' to a 'Maybe', in case it is 'Nothing'.
@@ -45,14 +57,14 @@ infixr 7 <!>
 mkItem
   :: Chronos.Day -> Path Rel File -> (Aeson.Value, [Pandoc.Block]) -> Either MetadataError Item
 mkItem day p (v, documentContent) = do
-  id <- v ^? key "id" . _String <!> MissingKey p "id"
+  id <- v ^? key "id" . _String . to ItemId <!> MissingKey p "id"
   title <- v ^? key "title" . _String <!> MissingKey p "title"
   pub <- v ^? key "publish" . _String <!> MissingKey p "publish"
   publish <- case AP.parseOnly (Chronos.parser_Dmy $ Just '-') pub of
     Left err -> Left $ MalformedPublishDate p err
     Right d -> pure d
   let
-    tags = v ^.. key "tags" . values . _String
+    tags = v ^.. key "tags" . values . _String . to TagName
   if Chronos.dayToDate day < publish
     then Left $ PostNotPublishedYet p id
     else

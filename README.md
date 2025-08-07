@@ -1,7 +1,7 @@
 # TODO
 
 - [ ] make QQ for output/source file rel
-- [ ] review item fields
+- [x] review item fields
 - [ ] review text/string arguments, especially keys?
 
 - RSS helpers?

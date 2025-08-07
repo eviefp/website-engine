@@ -90,7 +90,7 @@ generatePage name path templatePath cache = do
     Nothing -> putError $ "[generatePage] Cannot find item in cache: " <> name
     Just i -> pure i
 
-  case find ((== takeBaseName path) . T.unpack . id) items of
+  case find ((== (ItemId . T.pack . takeBaseName $ path)) . id) items of
     Nothing ->
       putError
         . join
@@ -106,7 +106,7 @@ generatePage name path templatePath cache = do
         . fmap (asOutputRel . ([reldir|"tag"|] </>))
         <=< traverse (addExtension ".html")
         <=< traverse parseRelFile
-        $ (T.unpack <$> tags item)
+        $ (T.unpack . getTagName <$> tags item)
 
       putVerbose $ "[generatePage] Generating content for " <> show path
       content <- genenerateHtmlWithFixedWikiLinks cache (T.pack name) . documentContent $ item

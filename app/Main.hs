@@ -56,21 +56,21 @@ run = do
       . fmap (asOutputRel . ([P.reldir|"post"|] </>))
       <=< traverse (P.addExtension "html")
       <=< traverse P.parseRelFile
-      . fmap (T.unpack . id)
+      . fmap (T.unpack . getItemId . id)
       . snd
       $ posts
     need
       . fmap (asOutputRel . ([P.reldir|"page"|] </>))
       <=< traverse (P.addExtension "html")
       <=< traverse P.parseRelFile
-      . fmap (T.unpack . id)
+      . fmap (T.unpack . getItemId . id)
       . snd
       $ pages
     need
       . fmap (asOutputRel . ([P.reldir|"wiki"|] </>))
       <=< traverse (P.addExtension "html")
       <=< traverse P.parseRelFile
-      . fmap (T.unpack . id)
+      . fmap (T.unpack . getItemId . id)
       . snd
       $ wikis
 
@@ -131,7 +131,7 @@ run = do
     allWikis <- itemsCache wiki
 
     let
-      tagName = T.pack . takeBaseName $ path
+      tagName = TagName . T.pack . takeBaseName $ path
       posts = filter ((tagName `elem`) . tags) . snd $ allPosts
       pages = filter ((tagName `elem`) . tags) . snd $ allPages
       wikis = filter ((tagName `elem`) . tags) . snd $ allWikis
@@ -142,4 +142,5 @@ run = do
       . addKey "wikis" (Aeson.toJSON $ fmap metadata wikis)
       . withMetadataObject "tagName"
       . Aeson.toJSON
+      . getTagName
       $ tagName
