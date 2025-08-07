@@ -1,6 +1,6 @@
 # TODO
 
-- [ ] make QQ for output/source file rel
+- [x] make QQ for output/source file rel
 - [x] review item fields
 - [ ] review text/string arguments, especially keys?
 

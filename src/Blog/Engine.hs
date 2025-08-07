@@ -103,7 +103,7 @@ generatePage name path templatePath cache = do
           ]
     Just item -> do
       need
-        . fmap (asOutputRel . ([reldir|"tag"|] </>))
+        . fmap ([outputRelDir|"tag"|] </>)
         <=< traverse (addExtension ".html")
         <=< traverse parseRelFile
         $ (T.unpack . getTagName <$> tags item)

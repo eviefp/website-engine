@@ -5,12 +5,19 @@ module Blog.Path
   , asSourceRel
   , outputToRel
   , sourceToRel
+  , outputRelFile
+  , outputRelDir
+  , sourceRelFile
+  , sourceRelDir
   ) where
 
 import Blog.Prelude
 import Blog.Settings (Settings (..))
 
 import Control.Monad.Reader.Class
+import Language.Haskell.TH
+import Language.Haskell.TH.Quote (QuasiQuoter (..))
+import qualified Language.Haskell.TH.Syntax as TH
 import qualified Path.Internal.Posix as PI
 import qualified Path.Posix as P
 
@@ -41,3 +48,39 @@ outputToRel (PI.Path p) = (P.</> PI.Path p) <$> asks output
 -- 'm' can be 'Action' or 'Rules'.
 sourceToRel :: (MonadReader Settings m) => P.Path SourceRel t -> m (P.Path P.Rel t)
 sourceToRel (PI.Path p) = (P.</> PI.Path p) <$> asks source
+
+mkOutputRelFile :: FilePath -> Q Exp
+mkOutputRelFile = either (crashWith . show) (TH.lift . asOutputRel) . parseRelFile
+
+outputRelFile :: QuasiQuoter
+outputRelFile = qq mkOutputRelFile
+
+mkOutputRelDir :: FilePath -> Q Exp
+mkOutputRelDir = either (crashWith . show) (TH.lift . asOutputRel) . parseRelDir
+
+outputRelDir :: QuasiQuoter
+outputRelDir = qq mkOutputRelDir
+
+mkSourceRelFile :: FilePath -> Q Exp
+mkSourceRelFile = either (crashWith . show) (TH.lift . asSourceRel) . parseRelFile
+
+sourceRelFile :: QuasiQuoter
+sourceRelFile = qq mkSourceRelFile
+
+mkSourceRelDir :: FilePath -> Q Exp
+mkSourceRelDir = either (crashWith . show) (TH.lift . asSourceRel) . parseRelDir
+
+sourceRelDir :: QuasiQuoter
+sourceRelDir = qq mkSourceRelDir
+
+qq :: (String -> Q Exp) -> QuasiQuoter
+qq quoteExp' =
+  QuasiQuoter
+    { quoteExp = quoteExp'
+    , quotePat = \_ ->
+        crashWith "illegal QuasiQuote (allowed as expression only, used as a pattern)"
+    , quoteType = \_ ->
+        crashWith "illegal QuasiQuote (allowed as expression only, used as a type)"
+    , quoteDec = \_ ->
+        crashWith "illegal QuasiQuote (allowed as expression only, used as a declaration)"
+    }
