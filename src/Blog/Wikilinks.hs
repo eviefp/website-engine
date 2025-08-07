@@ -1,22 +1,25 @@
 module Blog.Wikilinks
   ( transform
   , Log (..)
-  , printLog
   ) where
 
 import Blog.Item (Item)
 import qualified Blog.Item as Item
 import Blog.Prelude
+import Blog.Types
 
 import Control.Monad.Except (ExceptT)
 import qualified Control.Monad.Except as Except
 import Control.Monad.State.Strict (State)
 import qualified Control.Monad.State.Strict as State
 import qualified Data.Text as T
-import qualified Development.Shake as Shake
 import qualified Text.Pandoc as Pandoc
 
-transform :: [(Text, [Item])] -> Text -> Pandoc.Inline -> ExceptT () (State [Log]) Pandoc.Inline
+transform
+  :: [(Text, [Item])]
+  -> Text
+  -> Pandoc.Inline
+  -> ExceptT () (State [Log]) Pandoc.Inline
 transform cache def =
   \case
     l@(Pandoc.Link attr@(_, classes, _) content@[Pandoc.Str originalText] target)
@@ -45,7 +48,10 @@ transform cache def =
     other -> pure other
 
 fixTarget
-  :: [(Text, [Item])] -> Text -> (Text, Text) -> ExceptT () (State [Log]) (Text, Text, Text)
+  :: [(Text, [Item])]
+  -> Text
+  -> (Text, Text)
+  -> ExceptT () (State [Log]) (Text, Text, Text)
 fixTarget cache def (url, title) =
   case parseUrl url of
     Nothing -> do
@@ -88,21 +94,3 @@ fixTarget cache def (url, title) =
 
 appendState :: forall a m. (State.MonadState [a] m) => a -> m ()
 appendState = State.modify' . flip (<>) . pure
-
--- A few thoughts about this type
---   - no show instance
---   - fixed to strings
---   - not sure this should be in this module
--- However, I'm not sure how this wants to evolve yet.
--- We'll know more when we need it again.
-data Log
-  = Verbose String
-  | Warning String
-  | Error String
-
-printLog :: Log -> Shake.Action ()
-printLog =
-  \case
-    Verbose str -> Shake.putVerbose str
-    Warning str -> Shake.putWarn str
-    Error str -> Shake.putError str

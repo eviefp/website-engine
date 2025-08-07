@@ -64,8 +64,10 @@ library
   exposed-modules:
     Blog.Engine
     Blog.Item
+    Blog.Path
     Blog.Prelude
     Blog.Settings
+    Blog.Types
     Blog.Wikilinks
 
   build-depends:
@@ -75,13 +77,16 @@ library
     , bytestring
     , chronos
     , exceptions
+    , extra
     , filepath
     , lens
     , lens-aeson
     , mtl
     , pandoc
     , pandoc-types
+    , path
     , shake
+    , shake-plus
     , slick
     , text
     , vector
@@ -108,7 +113,9 @@ executable website-engine
     , mtl
     , pandoc
     , pandoc-types
+    , path
     , shake
+    , shake-plus
     , slick
     , text
     , vector

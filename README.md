@@ -1,5 +1,9 @@
 # TODO
 
+- [ ] make QQ for output/source file rel
+- [ ] review item fields
+- [ ] review text/string arguments, especially keys?
+
 - RSS helpers?
 - use https://hackage.haskell.org/package/shake-plus-0.3.4.0/docs/Development-Shake-Plus-Core.html#t:RAction
 - look into https://hackage.haskell.org/package/shake-minify

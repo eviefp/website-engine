@@ -30,9 +30,9 @@ data Item = Item
 
 -- | Represents an error in parsing the metadata.
 data MetadataError
-  = MissingKey FilePath String
-  | MalformedPublishDate FilePath String
-  | PostNotPublishedYet FilePath Text
+  = MissingKey (Path Rel File) String
+  | MalformedPublishDate (Path Rel File) String
+  | PostNotPublishedYet (Path Rel File) Text
   deriving stock (Show)
 
 -- | Add an error 'note' to a 'Maybe', in case it is 'Nothing'.
@@ -43,7 +43,7 @@ infixr 7 <!>
 
 -- | Parse an 'Item' out of a markdown file.
 mkItem
-  :: Chronos.Day -> FilePath -> (Aeson.Value, [Pandoc.Block]) -> Either MetadataError Item
+  :: Chronos.Day -> Path Rel File -> (Aeson.Value, [Pandoc.Block]) -> Either MetadataError Item
 mkItem day p (v, documentContent) = do
   id <- v ^? key "id" . _String <!> MissingKey p "id"
   title <- v ^? key "title" . _String <!> MissingKey p "title"
