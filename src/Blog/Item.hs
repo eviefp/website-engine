@@ -54,8 +54,7 @@ data MetadataError
 infixr 7 <!>
 
 -- | Parse an 'Item' out of a markdown file.
-mkItem
-  :: Chronos.Day -> Path Rel File -> (Aeson.Value, [Pandoc.Block]) -> Either MetadataError Item
+mkItem :: Chronos.Day -> Path Rel File -> (Aeson.Value, [Pandoc.Block]) -> Either MetadataError Item
 mkItem day p (v, documentContent) = do
   id <- v ^? key "id" . _String . to ItemId <!> MissingKey p "id"
   title <- v ^? key "title" . _String <!> MissingKey p "title"

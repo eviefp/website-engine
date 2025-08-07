@@ -1,6 +1,7 @@
 module Blog.Types
   ( Rules
   , Action
+  , ItemKind (..)
   , Log (..)
   , printLog
   ) where
@@ -9,7 +10,9 @@ import Blog.Prelude
 import Blog.Settings (Settings)
 
 import Control.Exception.Extra (Partial)
+import Data.String (IsString)
 import qualified Development.Shake as Shake
+import Development.Shake.Classes (Hashable)
 import qualified Development.Shake.Plus as SP
 
 -- | Define rules for building.
@@ -19,6 +22,11 @@ type Rules a = SP.ShakePlus Settings a
 -- | Define how to build files/paths/etc.
 -- See 'copyFile', 'generatePage', 'need', etc.
 type Action a = SP.RAction Settings a
+
+newtype ItemKind = ItemKind
+  { getItemKind :: Text
+  }
+  deriving newtype (Show, Eq, Hashable, IsString)
 
 -- A few thoughts about this type
 --   - no show instance

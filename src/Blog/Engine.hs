@@ -80,14 +80,14 @@ copyFile src' dest' = do
 -- See 'Item' for more details.
 generatePage
   :: (Partial)
-  => String
+  => ItemKind
   -> Path OutputRel File
   -> Path SourceRel File
-  -> [(Text, [Item])]
+  -> [(ItemKind, [Item])]
   -> Action ()
 generatePage name path templatePath cache = do
-  items <- case lookup (T.pack name) cache of
-    Nothing -> putError $ "[generatePage] Cannot find item in cache: " <> name
+  items <- case lookup name cache of
+    Nothing -> putError $ "[generatePage] Cannot find item in cache: " <> show name
     Just i -> pure i
 
   case find ((== (ItemId . T.pack . takeBaseName $ path)) . id) items of
@@ -95,9 +95,9 @@ generatePage name path templatePath cache = do
       putError
         . join
         $ [ "["
-          , name
+          , show name
           , "] Internal error: could not find "
-          , name
+          , show name
           , " :"
           , show path
           ]
@@ -109,12 +109,12 @@ generatePage name path templatePath cache = do
         $ (T.unpack . getTagName <$> tags item)
 
       putVerbose $ "[generatePage] Generating content for " <> show path
-      content <- genenerateHtmlWithFixedWikiLinks cache (T.pack name) . documentContent $ item
+      content <- genenerateHtmlWithFixedWikiLinks cache name . documentContent $ item
       putVerbose $ "[generatePage] Generated content:\n" <> show content
 
       putInfo $ "[generatePage] Generated " <> show path
       writeFile templatePath path
-        . withMetadataObject name
+        . withMetadataObject (T.unpack . getItemKind $ name)
         . addKey "content" content
         . Aeson.toJSON
         . metadata
@@ -133,7 +133,7 @@ generatePage name path templatePath cache = do
 --
 -- The value of posts will be @("post", [...])@.
 -- See 'Item' for more details.
-initItemsCache :: Rules ((Text, [Shake.FilePattern]) -> Action (Text, [Item]))
+initItemsCache :: Rules ((ItemKind, [Shake.FilePattern]) -> Action (ItemKind, [Item]))
 initItemsCache = do
   SP.newCache \(k, path) -> do
     source <- asks Settings.source
@@ -296,8 +296,8 @@ flattenMeta writer (Pandoc.Meta meta) = Aeson.toJSON <$> traverse go meta
 
 genenerateHtmlWithFixedWikiLinks
   :: (Partial, Traversable t)
-  => [(Text, [Item])]
-  -> Text
+  => [(ItemKind, [Item])]
+  -> ItemKind
   -> t Pandoc.Block
   -> Action Aeson.Value
 genenerateHtmlWithFixedWikiLinks cache def blocks = do

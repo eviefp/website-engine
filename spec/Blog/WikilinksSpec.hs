@@ -18,6 +18,7 @@ import Data.List (unlines)
 import qualified Data.Text as T
 import qualified Text.Pandoc as Pandoc
 
+import Blog.Types (ItemKind)
 import Test.Hspec
 import qualified Test.Hspec.Golden as Golden
 
@@ -88,7 +89,7 @@ goldenMarkdownToMetaAndContent s =
 
 data TransformLinkSpec = TransformLinkSpec
   { testName :: String
-  , itemKey :: Text
+  , itemKey :: ItemKind
   , attr :: [Text]
   , content :: String
   , url :: Text
@@ -108,7 +109,7 @@ goldenTransformLink TransformLinkSpec {..} =
           $ Pandoc.Link ("", attr, []) [Pandoc.Str $ T.pack content] (url, title)
     pure $ show result <> "\n" <> unlines (show <$> logs)
 
-sampleCache :: Chronos.Day -> [(Text, [Item])]
+sampleCache :: Chronos.Day -> [(ItemKind, [Item])]
 sampleCache today =
   [
     ( "page"

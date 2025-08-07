@@ -16,8 +16,8 @@ import qualified Data.Text as T
 import qualified Text.Pandoc as Pandoc
 
 transform
-  :: [(Text, [Item])]
-  -> Text
+  :: [(ItemKind, [Item])]
+  -> ItemKind
   -> Pandoc.Inline
   -> ExceptT () (State [Log]) Pandoc.Inline
 transform cache def =
@@ -48,8 +48,8 @@ transform cache def =
     other -> pure other
 
 fixTarget
-  :: [(Text, [Item])]
-  -> Text
+  :: [(ItemKind, [Item])]
+  -> ItemKind
   -> (Text, Text)
   -> ExceptT () (State [Log]) (Text, ItemId, Text)
 fixTarget cache def (url, title) =
@@ -62,16 +62,16 @@ fixTarget cache def (url, title) =
         <> ". Wikilinks should only be used to link to internal content."
       pure (url, ItemId "", title)
     Just (k, itemId) ->
-      case find ((== k) . fst) cache of
+      case lookup k cache of
         Nothing -> do
           appendState
             . Error
             $ "[WikiLinks] Error: could not find key "
-            <> T.unpack k
+            <> show k
             <> " for url "
             <> T.unpack url
           Except.throwError ()
-        Just (_, items) ->
+        Just items ->
           case find ((== itemId) . Item.id) items of
             Nothing -> do
               appendState
@@ -79,16 +79,16 @@ fixTarget cache def (url, title) =
                 $ "[WikiLinks] Error: could not find itemId "
                 <> show itemId
                 <> " at key "
-                <> T.unpack k
+                <> show k
                 <> " for url "
                 <> T.unpack url
               Except.throwError ()
             Just item -> pure (url, Item.id item, Item.title item)
  where
-  parseUrl :: Text -> Maybe (Text, ItemId)
+  parseUrl :: Text -> Maybe (ItemKind, ItemId)
   parseUrl t =
     case dropWhile (== "") $ T.splitOn "/" t of
-      [k, v] -> Just (k, ItemId v)
+      [k, v] -> Just (ItemKind k, ItemId v)
       [v] -> Just (def, ItemId v)
       _ -> Nothing
 
