@@ -63,6 +63,7 @@ library
 
   exposed-modules:
     Blog.Content
+    Blog.Core
     Blog.Engine
     Blog.Item
     Blog.Path.Rel
@@ -89,7 +90,6 @@ library
     , path
     , shake
     , shake-plus
-    , slick
     , template-haskell
     , text
     , vector
@@ -118,7 +118,6 @@ executable website-engine
     , pandoc-types
     , path
     , shake
-    , slick
     , text
     , vector
     , website-engine

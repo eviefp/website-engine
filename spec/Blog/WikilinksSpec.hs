@@ -4,7 +4,7 @@ module Blog.WikilinksSpec
   ( spec
   ) where
 
-import qualified Blog.Engine as Engine
+import qualified Blog.Content as Content
 import Blog.Item (Item (..), ItemId (ItemId))
 import Blog.Prelude
 import Blog.Wikilinks (Log (..), transform)
@@ -83,7 +83,7 @@ goldenMarkdownToMetaAndContent :: String -> Spec
 goldenMarkdownToMetaAndContent s =
   Golden.golden ("goldenMarkdownToMetaAndContent-" <> s)
     . fmap show
-    . Engine.markdownToMetaAndContent
+    . Content.markdownToMetaAndContent
     . T.pack
     $ s
 

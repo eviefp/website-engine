@@ -1,5 +1,6 @@
 module Main where
 
+import Blog.Core
 import Blog.Engine
 import Blog.Item
 import qualified Blog.Path.Rel as RelPath
