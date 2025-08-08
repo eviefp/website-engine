@@ -2,14 +2,12 @@ module Main where
 
 import Blog.Engine
 import Blog.Item
+import qualified Blog.Path.Rel as RelPath
 import Blog.Prelude
 import Blog.Settings (Settings (Settings))
 import qualified Blog.Settings as Settings
-
-import Blog.Path
 import Blog.Types (Rules)
-import qualified Data.Aeson as Aeson
-import qualified Data.Text as T
+
 import qualified Development.Shake as Shake
 import qualified Path as P
 
@@ -31,7 +29,7 @@ main = do
 
 run :: Rules ()
 run = do
-  want [[outputRelFile|index.html|]]
+  want [[RelPath.outputFile|index.html|]]
 
   let
     post = ("post", ["post//*.md"])
@@ -53,18 +51,17 @@ run = do
     needItems wikis
 
     let
-      sortedPosts = sortOn (Down . publish) $ snd posts
-    writeFile [sourceRelFile|template/index.html|] path
+      sortedPosts = sortBy (Down . publish) posts
+    writeFile [RelPath.sourceFile|template/index.html|] path
       . withMetadataObject "posts"
-      . Aeson.toJSON
       . fmap metadata
       $ sortedPosts
 
   -- static content
   "css//*" %> \path ->
-    copyFile (asSourceRel path) path
+    copyFile (RelPath.asSource path) path
   "images//*" %> \path ->
-    copyFile (asSourceRel path) path
+    copyFile (RelPath.asSource path) path
 
   -- posts
   "post//*.html" %> \path -> do
@@ -74,9 +71,9 @@ run = do
       , itemsCache page
       , itemsCache wiki
       ]
-      >>= generatePage "post" path [sourceRelFile|template/post.html|]
+      >>= generatePage "post" path [RelPath.sourceFile|template/post.html|]
   "post/content//*" %> \path ->
-    copyFile (asSourceRel path) path
+    copyFile (RelPath.asSource path) path
 
   -- pages
   "page//*.html" %> \path -> do
@@ -86,9 +83,9 @@ run = do
       , itemsCache page
       , itemsCache wiki
       ]
-      >>= generatePage "page" path [sourceRelFile|template/page.html|]
+      >>= generatePage "page" path [RelPath.sourceFile|template/page.html|]
   "page/content//*" %> \path ->
-    copyFile (asSourceRel path) path
+    copyFile (RelPath.asSource path) path
 
   -- wiki
   "wiki//*.html" %> \path -> do
@@ -98,9 +95,9 @@ run = do
       , itemsCache page
       , itemsCache wiki
       ]
-      >>= generatePage "wiki" path [sourceRelFile|template/wiki.html|]
+      >>= generatePage "wiki" path [RelPath.sourceFile|template/wiki.html|]
   "wiki/content//*" %> \path ->
-    copyFile (asSourceRel path) path
+    copyFile (RelPath.asSource path) path
 
   -- tags
   "tag/*.html" %> \path -> do
@@ -109,16 +106,14 @@ run = do
     allWikis <- itemsCache wiki
 
     let
-      tagName = TagName . T.pack . takeBaseName $ path
-      posts = filter ((tagName `elem`) . tags) . snd $ allPosts
-      pages = filter ((tagName `elem`) . tags) . snd $ allPages
-      wikis = filter ((tagName `elem`) . tags) . snd $ allWikis
+      tagName = tagNameFromPath path
+      posts = filterByTags (tagName `elem`) allPosts
+      pages = filterByTags (tagName `elem`) allPages
+      wikis = filterByTags (tagName `elem`) allWikis
 
-    writeFile [sourceRelFile|template/tag.html|] path
-      . addKey "posts" (Aeson.toJSON $ fmap metadata posts)
-      . addKey "pages" (Aeson.toJSON $ fmap metadata pages)
-      . addKey "wikis" (Aeson.toJSON $ fmap metadata wikis)
+    writeFile [RelPath.sourceFile|template/tag.html|] path
+      . addKey "posts" (fmap metadata posts)
+      . addKey "pages" (fmap metadata pages)
+      . addKey "wikis" (fmap metadata wikis)
       . withMetadataObject "tagName"
-      . Aeson.toJSON
-      . getTagName
       $ tagName

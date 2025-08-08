@@ -5,8 +5,10 @@ module Blog.Item
   , MetadataError (..)
   , (<!>)
   , mkItem
+  , tagNameFromPath
   ) where
 
+import qualified Blog.Path.Rel as RelPath
 import Blog.Prelude
 
 import qualified Chronos
@@ -14,17 +16,24 @@ import Control.Lens ((^?))
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.KeyMap as KeyMap
 import qualified Data.Attoparsec.Text as AP
+import qualified Data.Text as T
 import qualified Text.Pandoc as Pandoc
 
+-- | Unique (per 'ItemKind') identifier for 'Item's.
 newtype ItemId = ItemId
   { getItemId :: Text
   }
   deriving newtype (Show, Eq)
 
+-- | The name for a tag — also acts as an identifier across 'ItemKind's.
 newtype TagName = TagName
   { getTagName :: Text
   }
-  deriving newtype (Eq)
+  deriving newtype (Eq, Aeson.ToJSON)
+
+-- | Given a relative path as @foo/bar/some-file.html@, returns @TagName "some-file"@.
+tagNameFromPath :: Path p File -> TagName
+tagNameFromPath = TagName . T.pack . RelPath.takeBaseName
 
 -- | Holds data about an item/post.
 -- All the metadata fields (id, title, etc.) are also present in 'metadata' as raw JSON.

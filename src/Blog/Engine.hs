@@ -18,13 +18,15 @@ module Blog.Engine
   , withMetadataObject
   , addKey
   , takeBaseName
+  , sortBy
+  , filterByTags
   , options
   , markdownToMetaAndContent
   )
 where
 
 import Blog.Item
-import Blog.Path
+import Blog.Path.Rel as Rel
 import Blog.Prelude
 import qualified Blog.Settings as Settings
 import Blog.Types
@@ -40,7 +42,6 @@ import qualified Data.Aeson.KeyMap as KeyMap
 import Data.Functor.Identity (runIdentity)
 import qualified Data.Text as T
 import qualified Development.Shake as Shake
-import qualified Development.Shake.FilePath as Shake
 import qualified Development.Shake.Plus as SP
 import qualified Slick
 import qualified Slick.Pandoc as Slick
@@ -58,11 +59,11 @@ runEngine args settings rules =
 -- You can define rules using @'(%>)'@.
 --
 -- 't' can be list, Maybe, etc.
-want :: (Partial, Traversable t) => t (Path OutputRel File) -> Rules ()
+want :: (Partial, Traversable t) => t (Path Rel.Output File) -> Rules ()
 want files = traverse outputToRel files >>= SP.wantP
 
 -- | Copy a file from a source-relative path to a destination-relative path.
-copyFile :: (Partial) => Path SourceRel File -> Path OutputRel File -> Action ()
+copyFile :: (Partial) => Path Rel.Source File -> Path Rel.Output File -> Action ()
 copyFile src' dest' = do
   src <- sourceToRel src'
   dest <- outputToRel dest'
@@ -88,8 +89,8 @@ copyFile src' dest' = do
 generatePage
   :: (Partial)
   => ItemKind
-  -> Path OutputRel File
-  -> Path SourceRel File
+  -> Path Rel.Output File
+  -> Path Rel.Source File
   -> [(ItemKind, [Item])]
   -> Action ()
 generatePage name path templatePath cache = do
@@ -110,7 +111,7 @@ generatePage name path templatePath cache = do
           ]
     Just item -> do
       need
-        . fmap ([outputRelDir|tag|] </>)
+        . fmap ([outputDir|tag|] </>)
         <=< traverse (addExtension ".html")
         <=< traverse parseRelFile
         $ (T.unpack . getTagName <$> tags item)
@@ -169,9 +170,10 @@ initItemsCache = do
 -- * path: destination-relative path for the output file
 -- * content: the aeson values to pass as inputs to mustache for substitution
 writeFile
-  :: Path SourceRel File
-  -> Path OutputRel File
-  -> Aeson.Value
+  :: (Aeson.ToJSON a)
+  => Path Rel.Source File
+  -> Path Rel.Output File
+  -> a
   -> Action ()
 writeFile templatePath' path' content = do
   templatePath <- sourceToRel templatePath'
@@ -184,6 +186,7 @@ writeFile templatePath' path' content = do
     <> show templatePath
   SP.writeFile' path
     . Slick.substitute template
+    . Aeson.toJSON
     $ content
 
 putVerbose :: String -> Action ()
@@ -219,29 +222,29 @@ removeOutput = do
 --       ...
 --       -- must generate path by the end, otherwise an error will be raised
 -- @
-(%>) :: Shake.FilePattern -> (Path OutputRel File -> Action ()) -> Rules ()
+(%>) :: Shake.FilePattern -> (Path Rel.Output File -> Action ()) -> Rules ()
 (%>) pat action = do
   output <- asks Settings.output
   (toFilePath output U.</> pat) SP.%> \path -> do
     putInfo $ "[%>] Generating " <> show path
     p <- stripProperPrefix output path
-    action (asOutputRel p)
+    action (asOutput p)
 
 -- | Declare dependencies between rules through paths.
-need :: (Traversable t) => t (Path OutputRel File) -> Action ()
+need :: (Traversable t) => t (Path Rel.Output File) -> Action ()
 need path = traverse outputToRel path >>= SP.needP
 
 -- | Declare dependencies between rules through paths.
 need' :: [Shake.FilePattern] -> Action ()
 need' pat = do
   source <- asks Settings.source
-  SP.getDirectoryFiles source pat >>= need . fmap asOutputRel
+  SP.getDirectoryFiles source pat >>= need . fmap asOutput
 
 -- | Needs all items in a cache.
 -- Assumes that the output path is @<ItemKind>/<itemId.html>@
 needItems :: (ItemKind, [Item]) -> Action ()
 needItems (itemKind, items) = do
-  itemDir <- fmap asOutputRel . parseRelDir . T.unpack . getItemKind $ itemKind
+  itemDir <- fmap asOutput . parseRelDir . T.unpack . getItemKind $ itemKind
   need
     . fmap (itemDir </>)
     <=< traverse (addExtension ".html")
@@ -256,21 +259,26 @@ needItems (itemKind, items) = do
 (~>) = SP.phony
 
 -- | Given some key @"k"@ and JSON value @v@, creates a JSON object @{ "k": v }@.
-withMetadataObject :: String -> Aeson.Value -> Aeson.Value
-withMetadataObject name json = Aeson.Object $ KeyMap.singleton (Key.fromString name) json
+withMetadataObject :: (Aeson.ToJSON a) => String -> a -> Aeson.Value
+withMetadataObject name = Aeson.Object . KeyMap.singleton (Key.fromString name) . Aeson.toJSON
 
 -- | Given a key @"k"@, JSON value @v@, and an existing object @o@,
 -- this function adds the key @"k": v@ to @o@.
-addKey :: String -> Aeson.Value -> Aeson.Value -> Aeson.Value
+addKey :: (Aeson.ToJSON a) => String -> a -> Aeson.Value -> Aeson.Value
 addKey k v object =
   case object of
-    Aeson.Object o -> Aeson.Object . KeyMap.insert (Key.fromString k) v $ o
+    Aeson.Object o -> Aeson.Object . KeyMap.insert (Key.fromString k) (Aeson.toJSON v) $ o
     other -> crashWith $ "addMetadataObject: json is not an object, found: " <> show other
 
--- | Given a relative path, returns the base name.
--- The base name is the name of the file (so it strips any directories and file extension).
-takeBaseName :: Path b File -> String
-takeBaseName = Shake.takeBaseName . toFilePath
+-- | A specialised version of `sortOn` that makes it easier to use with @(ItemKind, [Item])@.
+-- Use as @sortBy (Down . publish) posts@ to get newest posts first.
+sortBy :: (Ord a) => (Item -> a) -> (ItemKind, [Item]) -> [Item]
+sortBy f = sortOn f . snd
+
+-- | A specialised version for `filter` that makes it easier to use with @(ItemKind, [Item])@.
+-- Use as @filterByTags (myTag `elem`) posts@.
+filterByTags :: ([TagName] -> Bool) -> (ItemKind, [Item]) -> [Item]
+filterByTags f = filter (f . tags) . snd
 
 -- | Default Pandoc markdown reader options. Using other options may break some of the helpers.
 options :: Pandoc.ReaderOptions

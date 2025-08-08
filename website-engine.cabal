@@ -64,7 +64,7 @@ library
   exposed-modules:
     Blog.Engine
     Blog.Item
-    Blog.Path
+    Blog.Path.Rel
     Blog.Prelude
     Blog.Settings
     Blog.Types

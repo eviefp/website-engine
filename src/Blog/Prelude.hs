@@ -35,6 +35,7 @@ import Prelude as P
   , FilePath
   , IO
   , Maybe (..)
+  , Ord
   , Show
   , String
   , dropWhile
