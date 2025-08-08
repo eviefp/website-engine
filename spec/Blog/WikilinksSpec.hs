@@ -5,7 +5,7 @@ module Blog.WikilinksSpec
   ) where
 
 import qualified Blog.Engine as Engine
-import Blog.Item (Item (..))
+import Blog.Item (Item (..), ItemId (ItemId))
 import Blog.Prelude
 import Blog.Wikilinks (Log (..), transform)
 
@@ -18,6 +18,7 @@ import Data.List (unlines)
 import qualified Data.Text as T
 import qualified Text.Pandoc as Pandoc
 
+import Blog.Types (ItemKind)
 import Test.Hspec
 import qualified Test.Hspec.Golden as Golden
 
@@ -88,7 +89,7 @@ goldenMarkdownToMetaAndContent s =
 
 data TransformLinkSpec = TransformLinkSpec
   { testName :: String
-  , itemKey :: Text
+  , itemKey :: ItemKind
   , attr :: [Text]
   , content :: String
   , url :: Text
@@ -108,20 +109,20 @@ goldenTransformLink TransformLinkSpec {..} =
           $ Pandoc.Link ("", attr, []) [Pandoc.Str $ T.pack content] (url, title)
     pure $ show result <> "\n" <> unlines (show <$> logs)
 
-sampleCache :: Chronos.Day -> [(Text, [Item])]
+sampleCache :: Chronos.Day -> [(ItemKind, [Item])]
 sampleCache today =
   [
     ( "page"
     ,
       [ Item
-          "page-1"
+          (ItemId "page-1")
           "page-1-title"
           (Chronos.dayToDate today)
           []
           Aeson.Null
           []
       , Item
-          "page-2"
+          (ItemId "page-2")
           "page-2-title"
           (Chronos.dayToDate today)
           []
@@ -133,14 +134,14 @@ sampleCache today =
     ( "wiki"
     ,
       [ Item
-          "wiki-1"
+          (ItemId "wiki-1")
           "wiki-1-title"
           (Chronos.dayToDate today)
           []
           Aeson.Null
           [Pandoc.Para [Pandoc.Link ("", ["wikilinks"], []) [Pandoc.Str "wiki-2"] ("/wiki/wiki-2", "")]]
       , Item
-          "wiki-2"
+          (ItemId "wiki-2")
           "wiki-2-title"
           (Chronos.dayToDate today)
           []

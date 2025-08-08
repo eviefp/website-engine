@@ -1,22 +1,25 @@
 module Blog.Wikilinks
   ( transform
   , Log (..)
-  , printLog
   ) where
 
-import Blog.Item (Item)
+import Blog.Item (Item, ItemId (..))
 import qualified Blog.Item as Item
 import Blog.Prelude
+import Blog.Types
 
 import Control.Monad.Except (ExceptT)
 import qualified Control.Monad.Except as Except
 import Control.Monad.State.Strict (State)
 import qualified Control.Monad.State.Strict as State
 import qualified Data.Text as T
-import qualified Development.Shake as Shake
 import qualified Text.Pandoc as Pandoc
 
-transform :: [(Text, [Item])] -> Text -> Pandoc.Inline -> ExceptT () (State [Log]) Pandoc.Inline
+transform
+  :: [(ItemKind, [Item])]
+  -> ItemKind
+  -> Pandoc.Inline
+  -> ExceptT () (State [Log]) Pandoc.Inline
 transform cache def =
   \case
     l@(Pandoc.Link attr@(_, classes, _) content@[Pandoc.Str originalText] target)
@@ -28,7 +31,7 @@ transform cache def =
             <> show l
           let
             fixed =
-              if originalText == url || originalText == id
+              if originalText == url || originalText == getItemId id
                 then Pandoc.Link attr [Pandoc.Str title] (url, title)
                 else Pandoc.Link attr content (url, title)
           appendState
@@ -45,7 +48,10 @@ transform cache def =
     other -> pure other
 
 fixTarget
-  :: [(Text, [Item])] -> Text -> (Text, Text) -> ExceptT () (State [Log]) (Text, Text, Text)
+  :: [(ItemKind, [Item])]
+  -> ItemKind
+  -> (Text, Text)
+  -> ExceptT () (State [Log]) (Text, ItemId, Text)
 fixTarget cache def (url, title) =
   case parseUrl url of
     Nothing -> do
@@ -54,55 +60,37 @@ fixTarget cache def (url, title) =
         $ "[WikiLinks] Warning: failed parse for "
         <> T.unpack url
         <> ". Wikilinks should only be used to link to internal content."
-      pure (url, "", title)
+      pure (url, ItemId "", title)
     Just (k, itemId) ->
-      case find ((== k) . fst) cache of
+      case lookup k cache of
         Nothing -> do
           appendState
             . Error
             $ "[WikiLinks] Error: could not find key "
-            <> T.unpack k
+            <> show k
             <> " for url "
             <> T.unpack url
           Except.throwError ()
-        Just (_, items) ->
+        Just items ->
           case find ((== itemId) . Item.id) items of
             Nothing -> do
               appendState
                 . Error
                 $ "[WikiLinks] Error: could not find itemId "
-                <> T.unpack itemId
+                <> show itemId
                 <> " at key "
-                <> T.unpack k
+                <> show k
                 <> " for url "
                 <> T.unpack url
               Except.throwError ()
             Just item -> pure (url, Item.id item, Item.title item)
  where
-  parseUrl :: Text -> Maybe (Text, Text)
+  parseUrl :: Text -> Maybe (ItemKind, ItemId)
   parseUrl t =
     case dropWhile (== "") $ T.splitOn "/" t of
-      [k, v] -> Just (k, v)
-      [v] -> Just (def, v)
+      [k, v] -> Just (ItemKind k, ItemId v)
+      [v] -> Just (def, ItemId v)
       _ -> Nothing
 
 appendState :: forall a m. (State.MonadState [a] m) => a -> m ()
 appendState = State.modify' . flip (<>) . pure
-
--- A few thoughts about this type
---   - no show instance
---   - fixed to strings
---   - not sure this should be in this module
--- However, I'm not sure how this wants to evolve yet.
--- We'll know more when we need it again.
-data Log
-  = Verbose String
-  | Warning String
-  | Error String
-
-printLog :: Log -> Shake.Action ()
-printLog =
-  \case
-    Verbose str -> Shake.putVerbose str
-    Warning str -> Shake.putWarn str
-    Error str -> Shake.putError str

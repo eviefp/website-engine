@@ -2,37 +2,34 @@ module Main where
 
 import Blog.Engine
 import Blog.Item
+import qualified Blog.Path.Rel as RelPath
 import Blog.Prelude
 import Blog.Settings (Settings (Settings))
 import qualified Blog.Settings as Settings
+import Blog.Types (Rules)
 
-import qualified Data.Aeson as Aeson
-import qualified Data.Text as T
 import qualified Development.Shake as Shake
+import qualified Path as P
 
 -- This is just a sample generator. You should use the library and write your own.
 main :: IO ()
 main = do
-  Shake.shakeArgs shakeOpts
-    $ runReaderT run settings
- where
-  settings :: Settings
-  settings = Settings {source = "site", output = "docs"}
-
-  shakeOpts :: Shake.ShakeOptions
-  shakeOpts =
+  settings <- Settings <$> P.parseRelDir "site" <*> P.parseRelDir "docs"
+  runEngine
     Shake.shakeOptions
       { Shake.shakeLint = Just Shake.LintBasic
       , Shake.shakeTimings = False
-      , Shake.shakeLintInside = [Settings.source settings]
+      , Shake.shakeLintInside = P.toFilePath <$> [Settings.source settings]
       , Shake.shakeColor = True
       , Shake.shakeVerbosity = Shake.Verbose
       , Shake.shakeProgress = Shake.progressSimple
       }
+    settings
+    run
 
-run :: ReaderT Settings Shake.Rules ()
+run :: Rules ()
 run = do
-  want [RelativePath "index.html"]
+  want [[RelPath.outputFile|index.html|]]
 
   let
     post = ("post", ["post//*.md"])
@@ -49,23 +46,22 @@ run = do
     pages <- itemsCache page
     wikis <- itemsCache wiki
 
-    need . fmap (RelativePath . ("post" </>) . (-<.> "html") . T.unpack . id) . snd $ posts
-    need . fmap (RelativePath . ("page" </>) . (-<.> "html") . T.unpack . id) . snd $ pages
-    need . fmap (RelativePath . ("wiki" </>) . (-<.> "html") . T.unpack . id) . snd $ wikis
+    needItems posts
+    needItems pages
+    needItems wikis
 
     let
-      sortedPosts = sortOn (Down . publish) $ snd posts
-    writeFile (RelativePath "template/index.html") path
+      sortedPosts = sortBy (Down . publish) posts
+    writeFile [RelPath.sourceFile|template/index.html|] path
       . withMetadataObject "posts"
-      . Aeson.toJSON
       . fmap metadata
       $ sortedPosts
 
   -- static content
   "css//*" %> \path ->
-    copyFile path path
+    copyFile (RelPath.asSource path) path
   "images//*" %> \path ->
-    copyFile path path
+    copyFile (RelPath.asSource path) path
 
   -- posts
   "post//*.html" %> \path -> do
@@ -75,9 +71,9 @@ run = do
       , itemsCache page
       , itemsCache wiki
       ]
-      >>= generatePage "post" path (RelativePath "template/post.html")
+      >>= generatePage "post" path [RelPath.sourceFile|template/post.html|]
   "post/content//*" %> \path ->
-    copyFile path path
+    copyFile (RelPath.asSource path) path
 
   -- pages
   "page//*.html" %> \path -> do
@@ -87,9 +83,9 @@ run = do
       , itemsCache page
       , itemsCache wiki
       ]
-      >>= generatePage "page" path (RelativePath "template/page.html")
+      >>= generatePage "page" path [RelPath.sourceFile|template/page.html|]
   "page/content//*" %> \path ->
-    copyFile path path
+    copyFile (RelPath.asSource path) path
 
   -- wiki
   "wiki//*.html" %> \path -> do
@@ -99,9 +95,9 @@ run = do
       , itemsCache page
       , itemsCache wiki
       ]
-      >>= generatePage "wiki" path (RelativePath "template/wiki.html")
+      >>= generatePage "wiki" path [RelPath.sourceFile|template/wiki.html|]
   "wiki/content//*" %> \path ->
-    copyFile path path
+    copyFile (RelPath.asSource path) path
 
   -- tags
   "tag/*.html" %> \path -> do
@@ -110,15 +106,14 @@ run = do
     allWikis <- itemsCache wiki
 
     let
-      tagName = T.pack . takeBaseName $ path
-      posts = filter ((tagName `elem`) . tags) . snd $ allPosts
-      pages = filter ((tagName `elem`) . tags) . snd $ allPages
-      wikis = filter ((tagName `elem`) . tags) . snd $ allWikis
+      tagName = tagNameFromPath path
+      posts = filterByTags (tagName `elem`) allPosts
+      pages = filterByTags (tagName `elem`) allPages
+      wikis = filterByTags (tagName `elem`) allWikis
 
-    writeFile (RelativePath "template/tag.html") path
-      . addKey "posts" (Aeson.toJSON $ fmap metadata posts)
-      . addKey "pages" (Aeson.toJSON $ fmap metadata pages)
-      . addKey "wikis" (Aeson.toJSON $ fmap metadata wikis)
+    writeFile [RelPath.sourceFile|template/tag.html|] path
+      . addKey "posts" (fmap metadata posts)
+      . addKey "pages" (fmap metadata pages)
+      . addKey "wikis" (fmap metadata wikis)
       . withMetadataObject "tagName"
-      . Aeson.toJSON
       $ tagName

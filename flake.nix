@@ -153,6 +153,7 @@
               # use the default executables in order to hopefully hit the nixos cache
               pkgs.haskell.packages.ghc9102.cabal-install
               pkgs.haskell.packages.ghc9102.haskell-language-server
+              pkgs.hlint
 
               pkgs.http-server
               pkgs.zlib.dev
