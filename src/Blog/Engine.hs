@@ -39,11 +39,13 @@ runEngine settings rules =
   opts =
     Shake.shakeOptions
       { Shake.shakeLint = Just Shake.LintBasic
-      , Shake.shakeTimings = True
+      , Shake.shakeTimings = False
       , Shake.shakeLintInside = toFilePath <$> [Settings.source settings]
       , Shake.shakeColor = True
       , Shake.shakeVerbosity = Settings.verbosity settings
       , Shake.shakeProgress = Shake.progressSimple
+      , Shake.shakeThreads = 0
+      , Shake.shakeChange = Shake.ChangeModtimeAndDigestInput
       }
 
 -- | Copy a file from a source-relative path to a destination-relative path.
