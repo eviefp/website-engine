@@ -30,10 +30,21 @@ import qualified Data.Text as T
 import qualified Development.Shake as Shake
 import qualified Development.Shake.Plus as SP
 
-runEngine :: Shake.ShakeOptions -> Settings.Settings -> Rules () -> IO ()
-runEngine args settings rules =
-  Shake.shakeArgs args
+runEngine :: Settings.Settings -> Rules () -> IO ()
+runEngine settings rules =
+  Shake.shakeArgs opts
     $ SP.runShakePlus settings rules
+ where
+  opts :: Shake.ShakeOptions
+  opts =
+    Shake.shakeOptions
+      { Shake.shakeLint = Just Shake.LintBasic
+      , Shake.shakeTimings = True
+      , Shake.shakeLintInside = toFilePath <$> [Settings.source settings]
+      , Shake.shakeColor = True
+      , Shake.shakeVerbosity = Settings.verbosity settings
+      , Shake.shakeProgress = Shake.progressSimple
+      }
 
 -- | Copy a file from a source-relative path to a destination-relative path.
 copyFile :: (Partial) => Path Rel.Source File -> Path Rel.Output File -> Action ()
