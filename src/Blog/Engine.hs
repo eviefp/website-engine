@@ -1,66 +1,52 @@
 module Blog.Engine
   ( runEngine
-  , want
   , copyFile
   , generatePage
   , initItemsCache
   , writeFile
-  , putVerbose
-  , putInfo
-  , putWarn
-  , putError
   , removeOutput
-  , (%>)
-  , need
-  , need'
-  , needItems
-  , (~>)
   , withMetadataObject
   , addKey
   , takeBaseName
   , sortBy
   , filterByTags
-  , options
-  , markdownToMetaAndContent
   )
 where
 
+import qualified Blog.Content as Content
+import Blog.Core
 import Blog.Item
 import Blog.Path.Rel as Rel
 import Blog.Prelude
 import qualified Blog.Settings as Settings
 import Blog.Types
-import qualified Blog.Wikilinks as CL
 
 import qualified Chronos
 import Control.Exception.Extra (Partial)
-import qualified Control.Monad.Except as Except
-import qualified Control.Monad.State.Strict as State
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Key as Key
 import qualified Data.Aeson.KeyMap as KeyMap
-import Data.Functor.Identity (runIdentity)
 import qualified Data.Text as T
 import qualified Development.Shake as Shake
 import qualified Development.Shake.Plus as SP
-import qualified Slick
-import qualified Slick.Pandoc as Slick
-import qualified System.FilePath as U
-import qualified Text.Pandoc as Pandoc
-import qualified Text.Pandoc.Walk as PW
 
-runEngine :: Shake.ShakeOptions -> Settings.Settings -> Rules () -> IO ()
-runEngine args settings rules =
-  Shake.shakeArgs args
+runEngine :: Settings.Settings -> Rules () -> IO ()
+runEngine settings rules =
+  Shake.shakeArgs opts
     $ SP.runShakePlus settings rules
-
--- | Will attempt to find the appropriate Rules that match the requested paths.
---
--- You can define rules using @'(%>)'@.
---
--- 't' can be list, Maybe, etc.
-want :: (Partial, Traversable t) => t (Path Rel.Output File) -> Rules ()
-want files = traverse outputToRel files >>= SP.wantP
+ where
+  opts :: Shake.ShakeOptions
+  opts =
+    Shake.shakeOptions
+      { Shake.shakeLint = Just Shake.LintBasic
+      , Shake.shakeTimings = False
+      , Shake.shakeLintInside = toFilePath <$> [Settings.source settings]
+      , Shake.shakeColor = True
+      , Shake.shakeVerbosity = Settings.verbosity settings
+      , Shake.shakeProgress = Shake.progressSimple
+      , Shake.shakeThreads = 0
+      , Shake.shakeChange = Shake.ChangeModtimeAndDigestInput
+      }
 
 -- | Copy a file from a source-relative path to a destination-relative path.
 copyFile :: (Partial) => Path Rel.Source File -> Path Rel.Output File -> Action ()
@@ -117,7 +103,7 @@ generatePage name path templatePath cache = do
         $ (T.unpack . getTagName <$> tags item)
 
       putVerbose $ "[generatePage] Generating content for " <> show path
-      content <- genenerateHtmlWithFixedWikiLinks cache name . documentContent $ item
+      content <- Content.generateHtmlWithFixedWikiLinks cache name . documentContent $ item
       putVerbose $ "[generatePage] Generated content:\n" <> show content
 
       putInfo $ "[generatePage] Generated " <> show path
@@ -157,7 +143,7 @@ initItemsCache = do
                     putVerbose $ "Content: \n" <> show blocks
                     pure (meta, blocks)
                 )
-              <=< markdownToMetaAndContent
+              <=< Content.markdownToMetaAndContent
               <=< SP.readFileIn' source
               $ postPath
         )
@@ -175,37 +161,17 @@ writeFile
   -> Path Rel.Output File
   -> a
   -> Action ()
-writeFile templatePath' path' content = do
-  templatePath <- sourceToRel templatePath'
+writeFile templatePath path' content = do
   path <- outputToRel path'
-  template <- SP.liftAction . Slick.compileTemplate' . toFilePath $ templatePath
+  template <- Content.compileTemplate templatePath
   putInfo
     $ "[writeFile] Writing "
     <> show path
     <> " with template "
     <> show templatePath
   SP.writeFile' path
-    . Slick.substitute template
-    . Aeson.toJSON
+    . Content.substitute template
     $ content
-
-putVerbose :: String -> Action ()
-putVerbose = SP.liftAction . Shake.putVerbose
-
-putInfo :: String -> Action ()
-putInfo = SP.liftAction . Shake.putInfo
-
-putWarn :: String -> Action ()
-putWarn = SP.liftAction . Shake.putWarn
-
--- | Logs an error message and also exits the program.
-putError :: (Partial) => String -> Action a
-putError err = do
-  SP.liftAction $ Shake.putError err
-  crashWith err
-
-quietly :: Action a -> Action a
-quietly act = SP.withRunInAction (\run -> run act)
 
 -- | Nukes the output directory.
 removeOutput :: Action ()
@@ -213,50 +179,6 @@ removeOutput = do
   output <- asks Settings.output
   putInfo $ "[removeOutput] Nuking output " <> show output
   SP.removeFiles output ["//"]
-
--- | Defines the build rules for an output path.
--- Example:
---
--- @
---     "post/*.html" %> \path -> do
---       ...
---       -- must generate path by the end, otherwise an error will be raised
--- @
-(%>) :: Shake.FilePattern -> (Path Rel.Output File -> Action ()) -> Rules ()
-(%>) pat action = do
-  output <- asks Settings.output
-  (toFilePath output U.</> pat) SP.%> \path -> do
-    putInfo $ "[%>] Generating " <> show path
-    p <- stripProperPrefix output path
-    action (asOutput p)
-
--- | Declare dependencies between rules through paths.
-need :: (Traversable t) => t (Path Rel.Output File) -> Action ()
-need path = traverse outputToRel path >>= SP.needP
-
--- | Declare dependencies between rules through paths.
-need' :: [Shake.FilePattern] -> Action ()
-need' pat = do
-  source <- asks Settings.source
-  SP.getDirectoryFiles source pat >>= need . fmap asOutput
-
--- | Needs all items in a cache.
--- Assumes that the output path is @<ItemKind>/<itemId.html>@
-needItems :: (ItemKind, [Item]) -> Action ()
-needItems (itemKind, items) = do
-  itemDir <- fmap asOutput . parseRelDir . T.unpack . getItemKind $ itemKind
-  need
-    . fmap (itemDir </>)
-    <=< traverse (addExtension ".html")
-    <=< traverse parseRelFile
-    . fmap (T.unpack . getItemId . id)
-    $ items
-
--- | Declare a pseudo-rule using a name rather than a path.
--- This is required because @'(%>)'@ would crash the program if used with a fake name.
--- Can be used to create rules for cleaning or other auxiliary tasks.
-(~>) :: String -> Action () -> Rules ()
-(~>) = SP.phony
 
 -- | Given some key @"k"@ and JSON value @v@, creates a JSON object @{ "k": v }@.
 withMetadataObject :: (Aeson.ToJSON a) => String -> a -> Aeson.Value
@@ -279,72 +201,3 @@ sortBy f = sortOn f . snd
 -- Use as @filterByTags (myTag `elem`) posts@.
 filterByTags :: ([TagName] -> Bool) -> (ItemKind, [Item]) -> [Item]
 filterByTags f = filter (f . tags) . snd
-
--- | Default Pandoc markdown reader options. Using other options may break some of the helpers.
-options :: Pandoc.ReaderOptions
-options =
-  Slick.defaultMarkdownOptions
-    { Pandoc.readerExtensions =
-        mconcat
-          [ Pandoc.extensionsFromList
-              [ Pandoc.Ext_auto_identifiers -- todo: test
-              , Pandoc.Ext_fenced_code_attributes -- todo: test
-              , Pandoc.Ext_footnotes -- todo: test
-              , Pandoc.Ext_wikilinks_title_after_pipe -- needed for obsidian links
-              , Pandoc.Ext_yaml_metadata_block -- needed for metadata
-              ]
-          , Pandoc.githubMarkdownExtensions
-          ]
-    }
-
--- | Exported for testing. Should not be used.
-markdownToMetaAndContent :: (MonadIO m) => Text -> m (Aeson.Value, [Pandoc.Block])
-markdownToMetaAndContent content = do
-  let
-    writer = Pandoc.writeHtml5String Slick.defaultHtml5Options
-  (Pandoc.Pandoc meta' blocks) <- unPandocM $ Pandoc.readMarkdown options content
-  meta <- flattenMeta writer meta'
-  pure (meta, blocks)
-
-flattenMeta
-  :: (MonadIO m)
-  => (Pandoc.Pandoc -> Pandoc.PandocIO T.Text)
-  -> Pandoc.Meta
-  -> m Aeson.Value
-flattenMeta writer (Pandoc.Meta meta) = Aeson.toJSON <$> traverse go meta
- where
-  go :: (MonadIO m) => Pandoc.MetaValue -> m Aeson.Value
-  go (Pandoc.MetaMap m) = Aeson.toJSON <$> traverse go m
-  go (Pandoc.MetaList m) = Aeson.toJSONList <$> traverse go m
-  go (Pandoc.MetaBool m) = pure $ Aeson.toJSON m
-  go (Pandoc.MetaString m) = pure $ Aeson.toJSON m
-  go (Pandoc.MetaInlines m) = Aeson.toJSON <$> (unPandocM . writer . Pandoc.Pandoc mempty . (: []) . Pandoc.Plain $ m)
-  go (Pandoc.MetaBlocks m) = Aeson.toJSON <$> (unPandocM . writer . Pandoc.Pandoc mempty $ m)
-
-genenerateHtmlWithFixedWikiLinks
-  :: (Partial, Traversable t)
-  => [(ItemKind, [Item])]
-  -> ItemKind
-  -> t Pandoc.Block
-  -> Action Aeson.Value
-genenerateHtmlWithFixedWikiLinks cache def blocks = do
-  let
-    (result, logs) =
-      runIdentity
-        . flip State.runStateT []
-        . Except.runExceptT
-        $ PW.walkM (CL.transform cache def) (toList blocks)
-  traverse_ printLog logs
-  case result of
-    Left _ -> crashWith "[Wikilinks] unrecoverable error. Stopping."
-    Right fixedBlocks -> do
-      let
-        writer = Pandoc.writeHtml5String Slick.defaultHtml5Options
-        doc = Pandoc.Pandoc mempty $ toList fixedBlocks
-      outText <- unPandocM $ writer doc
-      pure $ Aeson.String outText
-
-unPandocM :: (MonadIO m) => Pandoc.PandocIO a -> m a
-unPandocM p = do
-  result <- liftIO $ Pandoc.runIO p
-  either (crashWith . show) pure result

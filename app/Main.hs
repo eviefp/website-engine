@@ -1,31 +1,16 @@
 module Main where
 
-import Blog.Engine
-import Blog.Item
+import Blog
 import qualified Blog.Path.Rel as RelPath
 import Blog.Prelude
-import Blog.Settings (Settings (Settings))
-import qualified Blog.Settings as Settings
-import Blog.Types (Rules)
 
-import qualified Development.Shake as Shake
 import qualified Path as P
 
 -- This is just a sample generator. You should use the library and write your own.
 main :: IO ()
 main = do
-  settings <- Settings <$> P.parseRelDir "site" <*> P.parseRelDir "docs"
-  runEngine
-    Shake.shakeOptions
-      { Shake.shakeLint = Just Shake.LintBasic
-      , Shake.shakeTimings = False
-      , Shake.shakeLintInside = P.toFilePath <$> [Settings.source settings]
-      , Shake.shakeColor = True
-      , Shake.shakeVerbosity = Shake.Verbose
-      , Shake.shakeProgress = Shake.progressSimple
-      }
-    settings
-    run
+  settings <- Settings <$> P.parseRelDir "site" <*> P.parseRelDir "docs" <*> pure Verbose
+  runEngine settings run
 
 run :: Rules ()
 run = do
