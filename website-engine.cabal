@@ -105,22 +105,8 @@ executable website-engine
 
   main-is:          Main.hs
   build-depends:
-    , aeson
-    , attoparsec
     , base            ^>=4.20.1.0
-    , bytestring
-    , chronos
-    , exceptions
-    , filepath
-    , lens
-    , lens-aeson
-    , mtl
-    , pandoc
-    , pandoc-types
     , path
-    , shake
-    , text
-    , vector
     , website-engine
 
   hs-source-dirs:   app

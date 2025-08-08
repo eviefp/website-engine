@@ -4,13 +4,12 @@ import Blog
 import qualified Blog.Path.Rel as RelPath
 import Blog.Prelude
 
-import qualified Development.Shake as Shake
 import qualified Path as P
 
 -- This is just a sample generator. You should use the library and write your own.
 main :: IO ()
 main = do
-  settings <- Settings <$> P.parseRelDir "site" <*> P.parseRelDir "docs" <*> pure Shake.Verbose
+  settings <- Settings <$> P.parseRelDir "site" <*> P.parseRelDir "docs" <*> pure Verbose
   runEngine settings run
 
 run :: Rules ()
