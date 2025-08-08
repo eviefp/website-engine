@@ -90,7 +90,7 @@ generatePage name path templatePath cache = do
         $ (T.unpack . getTagName <$> tags item)
 
       putVerbose $ "[generatePage] Generating content for " <> show path
-      content <- Content.genenerateHtmlWithFixedWikiLinks cache name . documentContent $ item
+      content <- Content.generateHtmlWithFixedWikiLinks cache name . documentContent $ item
       putVerbose $ "[generatePage] Generated content:\n" <> show content
 
       putInfo $ "[generatePage] Generated " <> show path
