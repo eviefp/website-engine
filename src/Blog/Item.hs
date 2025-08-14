@@ -17,6 +17,8 @@ import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.KeyMap as KeyMap
 import qualified Data.Attoparsec.Text as AP
 import qualified Data.Text as T
+import qualified Data.Text.Lazy as TL
+import qualified Data.Text.Lazy.Builder as TB
 import qualified Text.Pandoc as Pandoc
 
 -- | Unique (per 'ItemKind') identifier for 'Item's.
@@ -62,6 +64,9 @@ data MetadataError
 
 infixr 7 <!>
 
+dateToISO8601 :: Chronos.Date -> Aeson.Value
+dateToISO8601 = Aeson.String . TL.toStrict . TB.toLazyText . Chronos.builder_Ymd (Just '-')
+
 -- | Parse an 'Item' out of a markdown file.
 mkItem :: Chronos.Day -> Path Rel File -> (Aeson.Value, [Pandoc.Block]) -> Either MetadataError Item
 mkItem day p (v, documentContent) = do
@@ -83,8 +88,12 @@ mkItem day p (v, documentContent) = do
         -- else, return whether the changelog is not empty
         renderChangelog = maybe (maybe False (not . null) changelog) identity $ v ^? key "renderChangelog" . _Bool
         renderChangelog' = Aeson.Bool . maybe renderChangelog ((&& renderChangelog) . not . null) $ changelog
+        isoPublishDate = dateToISO8601 publish
         metadata = case v of
-          Aeson.Object kv -> Aeson.Object $ KeyMap.insert "renderChangelog" renderChangelog' kv
+          Aeson.Object kv ->
+            Aeson.Object
+              $ KeyMap.insert "renderChangelog" renderChangelog'
+              $ KeyMap.insert "isoPublishDate" isoPublishDate kv
           _ -> v
       in
         pure Item {..}
