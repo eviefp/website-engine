@@ -106,6 +106,7 @@ executable website-engine
   main-is:          Main.hs
   build-depends:
     , base            ^>=4.20.1.0
+    , aeson
     , path
     , website-engine
 

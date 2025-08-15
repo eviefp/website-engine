@@ -4,16 +4,16 @@
       <article>
         <header>
           <hgroup>
-            <h1>{{wiki.id}}</h1>
+            <h1>{{metadata.id}}</h1>
             <p>
-              {{#wiki.tags}}
+              {{#metadata.tags}}
                 <a href="/wiki/tag/{{.}}.html" class="secondary">{{.}}</a>&nbsp;
-              {{/wiki.tags}}
+              {{/metadata.tags}}
             </p>
           </hgroup>
         </header>
-        {{{wiki.content}}}
-        <footer>{{wiki.footer}}</footer>
+        {{{metadata.content}}}
+        <footer>{{metadata.footer}}</footer>
       </article>
     </main>
 

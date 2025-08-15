@@ -92,8 +92,9 @@ mkItem day p (v, documentContent) = do
         metadata = case v of
           Aeson.Object kv ->
             Aeson.Object
-              $ KeyMap.insert "renderChangelog" renderChangelog'
-              $ KeyMap.insert "isoPublishDate" isoPublishDate kv
+              . KeyMap.insert "renderChangelog" renderChangelog'
+              . KeyMap.insert "isoPublishDate" isoPublishDate
+              $ kv
           _ -> v
       in
         pure Item {..}

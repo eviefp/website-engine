@@ -2,6 +2,7 @@ module Blog.Engine
   ( runEngine
   , copyFile
   , generatePage
+  , noExtraKeys
   , initItemsCache
   , writeFile
   , removeOutput
@@ -65,9 +66,11 @@ copyFile src' dest' = do
 -- * cache: a lookup dictionary with all the content items of the website;
 --   one key must match the name, and under this key there has to be an item
 --   with its itemId equal to the baseName of the path
+-- * extraKeys: allows users to add extra keys to the mustache substitution;
+--   use 'noExtraKeys' for none
 --
 -- The mustache template will get all metadata fields from the markdown file
--- under a key that matches the passed in 'name' argument.
+-- under the 'metadata' key.
 -- It will also get an extra field labeled 'content', which is the HTML generated
 -- content.
 --
@@ -77,9 +80,10 @@ generatePage
   => ItemKind
   -> Path Rel.Output File
   -> Path Rel.Source File
+  -> (Item -> [(String, Aeson.Value)])
   -> [(ItemKind, [Item])]
   -> Action ()
-generatePage name path templatePath cache = do
+generatePage name path templatePath extraKeys cache = do
   items <- case lookup name cache of
     Nothing -> putError $ "[generatePage] Cannot find item in cache: " <> show name
     Just i -> pure i
@@ -108,11 +112,17 @@ generatePage name path templatePath cache = do
 
       putInfo $ "[generatePage] Generated " <> show path
       writeFile templatePath path
-        . withMetadataObject (T.unpack . getItemKind $ name)
+        . flip (foldl (flip . uncurry $ addKey)) (extraKeys item)
+        . withMetadataObject "metadata"
+        . addKey "relativePath" path
         . addKey "content" content
         . Aeson.toJSON
         . metadata
         $ item
+
+-- | Use with 'generatePage' to signal no extra keys are required.
+noExtraKeys :: Item -> [(String, Aeson.Value)]
+noExtraKeys = const []
 
 -- | Initialise the items cache. This function takes no arguments.
 -- Returns a function that takes a tuple of a item-group key and a list of file patterns.

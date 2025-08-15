@@ -17,7 +17,7 @@ import Control.Monad.Trans as P (lift)
 import qualified Data.Aeson as Aeson
 import Data.Aeson.Lens as P (key, values, _Array, _Bool, _String)
 import Data.Either as P (lefts, rights)
-import Data.Foldable as P (forM_, toList, traverse_)
+import Data.Foldable as P (foldl, foldr, forM_, toList, traverse_)
 import Data.Function as P ((&))
 import Data.Functor as P (void, ($>))
 import Data.List as P (elem, filter, find, length, sortOn)
@@ -38,6 +38,8 @@ import Prelude as P
   , Ord
   , Show
   , String
+  , const
+  , curry
   , dropWhile
   , either
   , flip
@@ -56,6 +58,7 @@ import Prelude as P
   , sequence
   , show
   , snd
+  , uncurry
   , ($)
   , (&&)
   , (*>)

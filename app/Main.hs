@@ -4,6 +4,7 @@ import Blog
 import qualified Blog.Path.Rel as RelPath
 import Blog.Prelude
 
+import qualified Data.Aeson as Aeson
 import qualified Path as P
 
 -- This is just a sample generator. You should use the library and write your own.
@@ -56,7 +57,11 @@ run = do
       , itemsCache page
       , itemsCache wiki
       ]
-      >>= generatePage "post" path [RelPath.sourceFile|template/post.html|]
+      >>= generatePage
+        "post"
+        path
+        [RelPath.sourceFile|template/post.html|]
+        (const [("foo", Aeson.toJSON @Text "foo"), ("bar", Aeson.toJSON @Text "bar")])
   "post/content//*" %> \path ->
     copyFile (RelPath.asSource path) path
 
@@ -68,7 +73,7 @@ run = do
       , itemsCache page
       , itemsCache wiki
       ]
-      >>= generatePage "page" path [RelPath.sourceFile|template/page.html|]
+      >>= generatePage "page" path [RelPath.sourceFile|template/page.html|] noExtraKeys
   "page/content//*" %> \path ->
     copyFile (RelPath.asSource path) path
 
@@ -80,7 +85,7 @@ run = do
       , itemsCache page
       , itemsCache wiki
       ]
-      >>= generatePage "wiki" path [RelPath.sourceFile|template/wiki.html|]
+      >>= generatePage "wiki" path [RelPath.sourceFile|template/wiki.html|] noExtraKeys
   "wiki/content//*" %> \path ->
     copyFile (RelPath.asSource path) path
 
