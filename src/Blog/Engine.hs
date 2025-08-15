@@ -67,7 +67,7 @@ copyFile src' dest' = do
 --   with its itemId equal to the baseName of the path
 --
 -- The mustache template will get all metadata fields from the markdown file
--- under a key that matches the passed in 'name' argument.
+-- under the 'metadata' key.
 -- It will also get an extra field labeled 'content', which is the HTML generated
 -- content.
 --
@@ -108,7 +108,7 @@ generatePage name path templatePath cache = do
 
       putInfo $ "[generatePage] Generated " <> show path
       writeFile templatePath path
-        . withMetadataObject (T.unpack . getItemKind $ name)
+        . withMetadataObject "metadata"
         . addKey "content" content
         . Aeson.toJSON
         . metadata

@@ -6,26 +6,26 @@
           <hgroup>
             <div class="grid">
               <div>
-              <h1>{{post.title}} {{#post.author}} -- {{.}} {{/post.author}}</h1>
+              <h1>{{metadata.title}} {{#metadata.author}} -- {{.}} {{/metadata.author}}</h1>
               </div>
               <div class="right">
-                <p>{{post.publish}}</p>
+                <p>{{metadata.publish}}</p>
               </div>
           </hgroup>
         </header>
-        {{{post.content}}}
+        {{{metadata.content}}}
 
         <hr />
 
-        {{#post.renderChangelog}}
+        {{#metadata.renderChangelog}}
         <h4>Changelog</h4>
         <ul>
-          {{#post.changelog}}
+          {{#metadata.changelog}}
             <li>{{.}}</li>
-          {{/post.changelog}}
+          {{/metadata.changelog}}
         </ul>
-        {{/post.renderChangelog}}
-        <footer>{{post.footer}}</footer>
+        {{/metadata.renderChangelog}}
+        <footer>{{metadata.footer}}</footer>
       </article>
     </main>
 

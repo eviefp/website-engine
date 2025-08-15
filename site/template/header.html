@@ -15,21 +15,21 @@
     <meta property="og:url" content="https://example.com/" /> {{! this is incorrect, it should be the absolute URL of the page }}
     <meta property="og:description" content="Content descripton" />
 
-    {{^post}}
+    {{^metadata}}
     {{! if we don't have a post, we assume we're in index (but we could be in a page or a tag ) }}
     <meta property="og:type" content="website" />
     <meta property="og:title" content="☭ evie" />
-    {{/post}}
+    {{/metadata}}
 
-    {{#post}}
+    {{#metadata}}
     {{! if we're in a post, customize the opengraph tags to suit }}
     <meta property="og:type" content="article" />
     <meta property="og:title" content="{{title}}" />
     <meta property="article:publisher" content="https://example.com/" />
     <meta property="article:published_time" content="{{isoPublishDate}}" />
-    {{/post}}
+    {{/metadata}}
 
-    <title>☭ evie{{#post.title}} | {{.}}{{/post.title}}</title>
+    <title>☭ evie{{#metadata.title}} | {{.}}{{/metadata.title}}</title>
   </head>
   <body class="container">
 
