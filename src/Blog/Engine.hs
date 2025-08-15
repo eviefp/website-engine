@@ -109,6 +109,7 @@ generatePage name path templatePath cache = do
       putInfo $ "[generatePage] Generated " <> show path
       writeFile templatePath path
         . withMetadataObject "metadata"
+        . addKey "relativePath" path
         . addKey "content" content
         . Aeson.toJSON
         . metadata
